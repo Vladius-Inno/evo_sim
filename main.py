@@ -13,6 +13,7 @@ class Environment:
         self.temperature_border2 = 10
         self.light_radius = min(width, height) / 2  # Radius of light circle
         self.food_positions = []
+        self.food_energy = {}  # Map positions to energy levels
 
     def get_light_level(self, x, y):
         """Calculate the light level at coordinates (x, y)."""
@@ -34,18 +35,25 @@ class Environment:
         return self.temperature_border1 + distance_from_left_border * temperature_range
 
     def add_food(self):
-        """Add food at a random location in the environment."""
+        """Add food at a random location in the environment with a random energy value."""
         x = random.randint(0, self.width - 1)
         y = random.randint(0, self.height - 1)
+        energy = random.uniform(10, 30)  # Energy value between 10 and 30
         self.food_positions.append((x, y))
+        self.food_energy[(x, y)] = energy
 
     def get_food_positions(self):
         return self.food_positions
+
+    def get_food_energy(self, position):
+        """Return the energy value of food at a given position."""
+        return self.food_energy.get(position, 0)
 
     def remove_food(self, position):
         """Remove food from a specific location after it's consumed."""
         if position in self.food_positions:
             self.food_positions.remove(position)
+            del self.food_energy[position]
 
 
 class DNA:
@@ -58,6 +66,27 @@ class DNA:
     def get_gene(self, gene_type):
         """Retrieve the value of a specific gene."""
         return self.genes.get(gene_type, None)
+
+    @classmethod
+    def create_initial_dna(cls):
+        genes = {
+            'initial_size': random.uniform(5.0, 7.0),
+            'metabolism_rate': random.uniform(0.05, 0.2),
+            'speed': random.uniform(4.0, 8.0),
+            'skin_color': random.choice(['red', 'blue']),
+            'food_required_to_grow': random.uniform(40.0, 60.0),
+            'food_required_to_be_fertile': random.uniform(30.0, 40.0),
+            'food_sense_distance': random.uniform(10.0, 20.0),
+            'food_types': random.choice([['plant'], ['prey'], ['corpse']]),
+            'aggressiveness': random.uniform(0.0, 1.0),
+            'social_behavior': random.choice([True, False]),
+            'reproduction_rate': random.uniform(0.1, 1.0),
+            'temperature_tolerance': (random.uniform(0.0, 10.0), random.uniform(30.0, 40.0)),
+            'activeness': random.uniform(0.4, 1.0),  # Add activeness gene with a range between 0.1 and 1.0
+            "max_age": random.randint(400, 700)  # Add max_age gene with random lifespan between 100 and 1000 ticks
+
+        }
+        return cls(genes)
 
     def mutate(self):
         if not self.genes:
@@ -125,7 +154,7 @@ class Traits:
         genes = self.dna.genes
 
         # Decode each gene type
-        traits['initial_size'] = genes.get('initial_size', 10.0)
+        traits['initial_size'] = genes.get('initial_size', 3.0)
         traits['metabolism_rate'] = genes.get('metabolism_rate', 0.1)
         traits['speed'] = genes.get('speed', 5.0)
         traits['skin_color'] = genes.get('skin_color', 'green')
@@ -137,8 +166,8 @@ class Traits:
         traits['social_behavior'] = genes.get('social_behavior', True)
         traits['reproduction_rate'] = genes.get('reproduction_rate', 1.0)
         traits['temperature_tolerance'] = genes.get('temperature_tolerance', (10.0, 35.0))
-        traits['activeness'] = dna.get_gene("activeness")  # Decode activeness gene
-
+        traits['activeness'] = genes.get("activeness")  # Decode activeness gene
+        traits['max_age'] = genes.get('max_age')
         return traits
 
     def get_trait(self, trait_name):
@@ -146,25 +175,6 @@ class Traits:
 
     def __str__(self):
         return str(self.traits)
-
-
-def create_initial_dna():
-    genes = {
-        'initial_size': random.uniform(5.0, 10.0),
-        'metabolism_rate': random.uniform(0.05, 0.2),
-        'speed': random.uniform(1.0, 10.0),
-        'skin_color': random.choice(['red', 'blue']),
-        'food_required_to_grow': random.uniform(10.0, 50.0),
-        'food_required_to_be_fertile': random.uniform(20.0, 60.0),
-        'food_sense_distance': random.uniform(10.0, 100.0),
-        'food_types': random.choice([['plant'], ['insect'], ['plant', 'insect']]),
-        'aggressiveness': random.uniform(0.0, 1.0),
-        'social_behavior': random.choice([True, False]),
-        'reproduction_rate': random.uniform(0.1, 1.0),
-        'temperature_tolerance': (random.uniform(0.0, 10.0), random.uniform(30.0, 40.0)),
-        "activeness": random.uniform(0.1, 1.0)  # Add activeness gene with a range between 0.1 and 1.0
-    }
-    return DNA(genes)
 
 
 class Visualizer:
@@ -177,6 +187,8 @@ class Visualizer:
         self.organisms = []  # List to hold organisms for visualization
         self.ticks = 0  # Track simulation ticks
         self.skip_ticks = 1
+        self.paused = False  # Track whether the simulation is paused
+        self.font = pygame.font.SysFont(None, 24)
 
     def add_organism(self, organism):
         """Add an organism to be displayed."""
@@ -236,6 +248,11 @@ class Visualizer:
 
                 self.env_surface.set_at((x, y), color)
 
+    def draw_text(self, text, position):
+        """Render text on the screen."""
+        text_surface = self.font.render(text, True, (255, 255, 255))
+        self.screen.blit(text_surface, position)
+
     def draw_environment(self):
         """Blit the precomputed environment surface to the screen."""
         self.screen.blit(self.env_surface, (0, 0))
@@ -262,29 +279,38 @@ class Visualizer:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    self.paused = not self.paused  # Toggle the paused state when spacebar is pressed
 
-            self.ticks += 1
+            if not self.paused:
+                self.ticks += 1
             # self.env.update()  # Update the environment if needed (e.g., food spawn)
 
-            # Add food every 5 ticks
-            if self.ticks % 5 == 0:
-                self.env.add_food()
+                # Add food every 5 ticks
+                if self.ticks % 15 == 0:
+                    self.env.add_food()
 
-            self.draw_environment()  # Draw the precomputed environment
+                self.draw_environment()  # Draw the precomputed environment
 
-            # Update organism positions
-            for organism in self.organisms:
-                organism.update(self.env)
-                self.draw_organism(organism)
+                # Update organism positions
+                for organism in self.organisms:
+                    if organism.is_alive():
+                        organism.update(self.env)
+                        self.draw_organism(organism)
+                    else:
+                        self.organisms.remove(organism)
 
-            pygame.display.flip()  # Update the display
+                # Display the organism count
+                self.draw_text(f"Organisms: {len(self.organisms)}", (10, 10))
 
-            self.clock.tick(60)  # Cap the frame rate at 60 FPS
+                pygame.display.flip()  # Update the display
+
+                self.clock.tick(60)  # Cap the frame rate at 60 FPS
 
 
 class Organism:
     def __init__(self, x, y, size, speed, metabolism_rate, color, food_sense_distance, food_types,
-                 food_required_to_grow, food_required_to_be_fertile, activeness):
+                 food_required_to_grow, food_required_to_be_fertile, activeness, max_age, energy=100):
         self.x = x
         self.y = y
         self.size = size
@@ -296,8 +322,12 @@ class Organism:
         self.food_required_to_grow = food_required_to_grow
         self.food_required_to_be_fertile = food_required_to_be_fertile
         self.activeness = activeness  # gene for movement activity
-        self.direction = (0, 0)  # Initial direction
+        self.direction = (random.uniform(-1, 1), random.uniform(-1, 1))  # Initial random direction
         self.hunger = 0  # Start with 0 hunger
+        self.age = 0  # Initialize age to 0
+        self.max_age = max_age  # Maximum age determined by DNA
+        self.alive = True  # State to check if organism is alive
+        self.energy = energy  # New energy attribute
 
     def move_towards(self, target_x, target_y):
         """Move the organism towards a target point (target_x, target_y)."""
@@ -315,6 +345,20 @@ class Organism:
 
     def update(self, environment):
         """Update the organism's position."""
+        if not self.alive:
+            return
+
+        self.age += 1  # Increment age each tick
+
+        # Check for death probability
+        if self.age > self.max_age * 0.5:  # Start considering death after 50% of max age
+            death_probability = (self.age - self.max_age * 0.5) / (self.max_age * 0.5)
+            if random.random() < death_probability:
+                self.alive = False
+                return
+
+        self.metabolize()
+
         closest_food = None
         closest_distance = float('inf')
 
@@ -327,18 +371,16 @@ class Organism:
         if closest_food:
             self.move_towards(*closest_food)
             if math.hypot(closest_food[0] - self.x, closest_food[1] - self.y) < self.size:
-                self.consume_food(environment, closest_food)
+                food_energy = environment.get_food_energy(closest_food)
+                self.consume_food(environment, closest_food, food_energy)
         else:
             # Decide whether to move based on activeness
             if random.random() < self.activeness:
-                # Random direction change
-                if self.direction == (0, 0):  # Initial random direction if stationary
-                    self.direction = (random.uniform(-1, 1), random.uniform(-1, 1))
-                elif random.random() < 0.1:  # Occasionally adjust direction slightly
-                    self.direction = (
-                        self.direction[0] + random.uniform(-0.5, 0.5),
-                        self.direction[1] + random.uniform(-0.5, 0.5)
-                    )
+                # Add small random perturbations to direction more frequently
+                self.direction = (
+                    self.direction[0] + random.uniform(-0.3, 0.3),
+                    self.direction[1] + random.uniform(-0.3, 0.3)
+                )
 
                 # Normalize direction
                 direction_magnitude = math.hypot(self.direction[0], self.direction[1])
@@ -352,14 +394,31 @@ class Organism:
                 self.x += self.direction[0] * self.speed
                 self.y += self.direction[1] * self.speed
 
-                # Keep the organism within bounds
-                self.x = max(0, min(environment.width - 1, self.x))
-                self.y = max(0, min(environment.height - 1, self.y))
+                # # Keep the organism within bounds
+                # self.x = max(0, min(environment.width - 1, self.x))
+                # self.y = max(0, min(environment.height - 1, self.y))
 
-    def consume_food(self, environment, food_position):
+                # Handle border collisions by bouncing off the edges
+                if self.x <= 0 or self.x >= environment.width - 1:
+                    self.direction = (-self.direction[0], self.direction[1])  # Reverse X direction
+                    self.x = max(0, min(environment.width - 1, self.x))  # Keep within bounds
+
+                if self.y <= 0 or self.y >= environment.height - 1:
+                    self.direction = (self.direction[0], -self.direction[1])  # Reverse Y direction
+                    self.y = max(0, min(environment.height - 1, self.y))  # Keep within bounds
+
+    def is_alive(self):
+        return self.alive
+
+    def consume_food(self, environment, food_position, food_energy):
         """Consume food and decrease hunger."""
         self.hunger -= 50  # Decrease hunger by a fixed amount
         environment.remove_food(food_position)
+        self.energy += food_energy
+
+    def metabolize(self):
+        """Reduce energy over time based on metabolism rate."""
+        self.energy -= self.metabolism_rate
 
     # Add methods for movement, behavior, etc.
 
@@ -379,7 +438,7 @@ if __name__ == "__main__":
         y = (i * (env.height // num_organisms)) % env.height
 
         # Create DNA and Traits for the organism
-        dna = create_initial_dna()  # Generates random DNA
+        dna = DNA.create_initial_dna()  # Generates random DNA
         traits = Traits(dna)  # Decode DNA into traits
 
         # Initialize organism with traits
@@ -394,10 +453,10 @@ if __name__ == "__main__":
             food_types=traits.get_trait('food_types'),
             food_required_to_grow=traits.get_trait('food_required_to_grow'),
             food_required_to_be_fertile=traits.get_trait('food_required_to_be_fertile'),
-            activeness=traits.get_trait('activeness')
-            # activeness=random.uniform(0.1, 1.0)  # Random activeness gene
+            activeness=traits.get_trait('activeness'),
+            max_age=traits.get_trait('max_age')
         )
-
+        print(traits)
         # Add organism to the visualizer
         visualizer.add_organism(org)
 
