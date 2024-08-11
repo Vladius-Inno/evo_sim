@@ -72,60 +72,72 @@ class DNA:
         genes = {
             'initial_size': random.uniform(5.0, 7.0),
             'metabolism_rate': random.uniform(0.05, 0.2),
-            'speed': random.uniform(4.0, 8.0),
+            # 'speed': random.uniform(4.0, 8.0),
             'skin_color': random.choice(['red', 'blue']),
             'food_required_to_grow': random.uniform(40.0, 60.0),
             'food_required_to_be_fertile': random.uniform(30.0, 40.0),
-            'food_sense_distance': random.uniform(10.0, 20.0),
+            'food_sense_distance': random.uniform(20.0, 40.0),
             'food_types': random.choice([['plant'], ['prey'], ['corpse']]),
             'aggressiveness': random.uniform(0.0, 1.0),
             'social_behavior': random.choice([True, False]),
             'reproduction_rate': random.uniform(0.1, 1.0),
             'temperature_tolerance': (random.uniform(0.0, 10.0), random.uniform(30.0, 40.0)),
             'activeness': random.uniform(0.4, 1.0),  # Add activeness gene with a range between 0.1 and 1.0
-            "max_age": random.randint(400, 700)  # Add max_age gene with random lifespan between 100 and 1000 ticks
-
+            'max_age': random.randint(1000, 1200),  # Add max_age gene with random lifespan between 100 and 1000 ticks
+            'speed_modifier': random.uniform(1.0, 1.5)
         }
         return cls(genes)
 
+    # def mutate(self):
+    #     if not self.genes:
+    #         return
+    #
+    #     # Choose a random gene to mutate
+    #     gene_type = random.choice(list(self.genes.keys()))
+    #     value = self.genes[gene_type]
+    #
+    #     # Apply mutation based on gene type
+    #     if gene_type == 'initial_size':
+    #         self.genes[gene_type] = value + random.uniform(-1, 1)
+    #     elif gene_type == 'metabolism_rate':
+    #         self.genes[gene_type] = value + random.uniform(-0.01, 0.01)
+    #     elif gene_type == 'skin_color':
+    #         self.genes[gene_type] = random.choice(['red', 'blue'])
+    #     elif gene_type == 'food_required_to_grow':
+    #         self.genes[gene_type] = value + random.uniform(-5, 5)
+    #     elif gene_type == 'food_required_to_be_fertile':
+    #         self.genes[gene_type] = value + random.uniform(-5, 5)
+    #     elif gene_type == 'food_sense_distance':
+    #         self.genes[gene_type] = value + random.uniform(-10, 10)
+    #     elif gene_type == 'food_types':
+    #         # Randomly change food type
+    #         self.genes[gene_type] = random.choice([['plant'], ['insect'], ['plant', 'insect']])
+    #     elif gene_type == 'aggressiveness':
+    #         self.genes[gene_type] = random.uniform(0.0, 1.0)
+    #     elif gene_type == 'social_behavior':
+    #         self.genes[gene_type] = not value
+    #     elif gene_type == 'reproduction_rate':
+    #         self.genes[gene_type] = value + random.uniform(-0.1, 0.1)
+    #     elif gene_type == 'temperature_tolerance':
+    #         min_temp, max_temp = self.genes[gene_type]
+    #         if random.choice([True, False]):
+    #             self.genes[gene_type] = (min_temp + random.uniform(-2, 2), max_temp)
+    #         else:
+    #             self.genes[gene_type] = (min_temp, max_temp + random.uniform(-2, 2))
+
     def mutate(self):
-        if not self.genes:
-            return
-
-        # Choose a random gene to mutate
-        gene_type = random.choice(list(self.genes.keys()))
-        value = self.genes[gene_type]
-
-        # Apply mutation based on gene type
-        if gene_type == 'initial_size':
-            self.genes[gene_type] = value + random.uniform(-1, 1)
-        elif gene_type == 'metabolism_rate':
-            self.genes[gene_type] = value + random.uniform(-0.01, 0.01)
-        elif gene_type == 'speed':
-            self.genes[gene_type] = value + random.uniform(-0.5, 0.5)
-        elif gene_type == 'skin_color':
-            self.genes[gene_type] = random.choice(['red', 'blue'])
-        elif gene_type == 'food_required_to_grow':
-            self.genes[gene_type] = value + random.uniform(-5, 5)
-        elif gene_type == 'food_required_to_be_fertile':
-            self.genes[gene_type] = value + random.uniform(-5, 5)
-        elif gene_type == 'food_sense_distance':
-            self.genes[gene_type] = value + random.uniform(-10, 10)
-        elif gene_type == 'food_types':
-            # Randomly change food type
-            self.genes[gene_type] = random.choice([['plant'], ['insect'], ['plant', 'insect']])
-        elif gene_type == 'aggressiveness':
-            self.genes[gene_type] = random.uniform(0.0, 1.0)
-        elif gene_type == 'social_behavior':
-            self.genes[gene_type] = not value
-        elif gene_type == 'reproduction_rate':
-            self.genes[gene_type] = value + random.uniform(-0.1, 0.1)
-        elif gene_type == 'temperature_tolerance':
-            min_temp, max_temp = self.genes[gene_type]
-            if random.choice([True, False]):
-                self.genes[gene_type] = (min_temp + random.uniform(-2, 2), max_temp)
-            else:
-                self.genes[gene_type] = (min_temp, max_temp + random.uniform(-2, 2))
+        """Create a mutated copy of the DNA."""
+        mutated_genes = self.genes.copy()
+        mutation_chance = 0.1  # 10% chance for each gene to mutate
+        for gene in mutated_genes:
+            if random.random() < mutation_chance:
+                if isinstance(mutated_genes[gene], float):
+                    mutated_genes[gene] *= random.uniform(0.9, 1.1)
+                elif isinstance(mutated_genes[gene], list):
+                    mutated_genes[gene] = random.choice([['plant'], ['insect'], ['plant', 'insect']])
+                elif isinstance(mutated_genes[gene], bool):
+                    mutated_genes[gene] = not mutated_genes[gene]
+        return DNA(mutated_genes)
 
     def crossover(self, other):
         if not self.genes or not other.genes:
@@ -145,19 +157,20 @@ class DNA:
 
 
 class Traits:
-    def __init__(self, dna):
+    def __init__(self, dna, organism=None):
         self.dna = dna
-        self.traits = self.decode_dna()
+        # self.traits = self.decode_dna()
 
-    def decode_dna(self):
+    @staticmethod
+    def decode_dna(dna):
         traits = {}
-        genes = self.dna.genes
+        genes = dna.genes
 
         # Decode each gene type
-        traits['initial_size'] = genes.get('initial_size', 3.0)
+        traits['size'] = genes.get('initial_size', 3.0)
         traits['metabolism_rate'] = genes.get('metabolism_rate', 0.1)
-        traits['speed'] = genes.get('speed', 5.0)
         traits['skin_color'] = genes.get('skin_color', 'green')
+
         traits['food_required_to_grow'] = genes.get('food_required_to_grow', 20.0)
         traits['food_required_to_be_fertile'] = genes.get('food_required_to_be_fertile', 30.0)
         traits['food_sense_distance'] = genes.get('food_sense_distance', 50.0)
@@ -168,13 +181,29 @@ class Traits:
         traits['temperature_tolerance'] = genes.get('temperature_tolerance', (10.0, 35.0))
         traits['activeness'] = genes.get("activeness")  # Decode activeness gene
         traits['max_age'] = genes.get('max_age')
+        traits['speed_modifier'] = genes.get('speed_modifier')
+
+        # calculated traits
+        traits['speed'] = traits['metabolism_rate'] / traits['size'] * 100
+
         return traits
 
-    def get_trait(self, trait_name):
-        return self.traits.get(trait_name)
+    # def get_trait(self, trait_name):
+    #     return self.traits.get(trait_name)
 
-    def __str__(self):
-        return str(self.traits)
+    # def __str__(self):
+    #     return str(self.traits)
+
+    @staticmethod
+    def calculate_speed(dna, organism):
+        return dna.get_gene('metabolism_rate') / organism.size * 100
+
+    @staticmethod
+    def calculate_size(dna, organism):
+        if (organism.max_age / 2 - organism.age) > 0:
+            return organism.size + dna.get_gene('initial_size') * 0.4 / (organism.max_age - organism.age)
+        else:
+            return organism.size
 
 
 class Visualizer:
@@ -301,7 +330,13 @@ class Visualizer:
                         self.organisms.remove(organism)
 
                 # Display the organism count
-                self.draw_text(f"Organisms: {len(self.organisms)}", (10, 10))
+                organisms_count = len(self.organisms)
+                self.draw_text(f"Organisms: {organisms_count}", (10, 10))
+                self.draw_text(f"Ticks: {self.ticks}", (10, 30))
+                avg_speed = sum(organism.speed for organism in self.organisms) / organisms_count
+                self.draw_text(f"Average speed: {avg_speed}", (10, 50))
+                avg_size = sum(organism.size for organism in self.organisms) / organisms_count
+                self.draw_text(f"Average size: {avg_size}", (10, 70))
 
                 pygame.display.flip()  # Update the display
 
@@ -309,25 +344,27 @@ class Visualizer:
 
 
 class Organism:
-    def __init__(self, x, y, size, speed, metabolism_rate, color, food_sense_distance, food_types,
-                 food_required_to_grow, food_required_to_be_fertile, activeness, max_age, energy=100):
+    def __init__(self, dna, traits, x, y, energy):
         self.x = x
         self.y = y
-        self.size = size
-        self.speed = speed
-        self.metabolism_rate = metabolism_rate
-        self.color = color
-        self.food_sense_distance = food_sense_distance
-        self.food_types = food_types
-        self.food_required_to_grow = food_required_to_grow
-        self.food_required_to_be_fertile = food_required_to_be_fertile
-        self.activeness = activeness  # gene for movement activity
+        self.dna = dna
+        # self.size = traits.get_trait('size')
+        self.size = traits.get('size')
+        self.speed = traits.get('speed')
+        self.metabolism_rate = traits.get('metabolism_rate')
+        self.color = traits.get('skin_color')
+        self.food_sense_distance = traits.get('food_sense_distance')
+        self.food_types = traits.get('food_types')
+        self.food_required_to_grow = traits.get('food_required_to_grow')
+        self.food_required_to_be_fertile = traits.get('food_required_to_be_fertile')
+        self.activeness = traits.get('activeness')  # gene for movement activity
         self.direction = (random.uniform(-1, 1), random.uniform(-1, 1))  # Initial random direction
-        self.hunger = 0  # Start with 0 hunger
+        self.hunger = 50  # Start with 50 hunger
         self.age = 0  # Initialize age to 0
-        self.max_age = max_age  # Maximum age determined by DNA
+        self.max_age = traits.get('max_age')  # Maximum age determined by DNA
         self.alive = True  # State to check if organism is alive
         self.energy = energy  # New energy attribute
+        self.speed_modifier = traits.get('speed_modifier')
 
     def move_towards(self, target_x, target_y):
         """Move the organism towards a target point (target_x, target_y)."""
@@ -340,12 +377,12 @@ class Organism:
             dx /= distance
             dy /= distance
 
-            self.x += dx * self.speed
-            self.y += dy * self.speed
+            self.x += dx * self.speed * self.speed_modifier
+            self.y += dy * self.speed * self.speed_modifier
 
     def update(self, environment):
-        """Update the organism's position."""
-        if not self.alive:
+        """Update the organism's state."""
+        if not self.is_alive():
             return
 
         self.age += 1  # Increment age each tick
@@ -394,10 +431,6 @@ class Organism:
                 self.x += self.direction[0] * self.speed
                 self.y += self.direction[1] * self.speed
 
-                # # Keep the organism within bounds
-                # self.x = max(0, min(environment.width - 1, self.x))
-                # self.y = max(0, min(environment.height - 1, self.y))
-
                 # Handle border collisions by bouncing off the edges
                 if self.x <= 0 or self.x >= environment.width - 1:
                     self.direction = (-self.direction[0], self.direction[1])  # Reverse X direction
@@ -407,18 +440,37 @@ class Organism:
                     self.direction = (self.direction[0], -self.direction[1])  # Reverse Y direction
                     self.y = max(0, min(environment.height - 1, self.y))  # Keep within bounds
 
+        self.speed = Traits.calculate_speed(dna, self)
+        self.size = Traits.calculate_size(dna, self)
+
+        if self.age > self.max_age * 0.1 and self.energy >= 50:
+            self.reproduce(self.dna)
+
+    def reproduce(self, dna):
+        """Attempt to reproduce if conditions are met."""
+        child_dna = dna.mutate()  # Mutate the DNA slightly
+        child_x = self.x + random.uniform(-5, 5)
+        child_y = self.y + random.uniform(-5, 5)
+        child_energy = 30  # Transfer energy to the child
+        self.energy -= 30  # Deduct energy from the parent
+        child_traits = Traits.decode_dna(child_dna) # Decode DNA into traits
+        child = Organism(child_dna, child_traits, child_x, child_y, child_energy)
+        visualizer.add_organism(child)
+
     def is_alive(self):
+        if self.energy <= 0:
+            self.alive = False
         return self.alive
 
     def consume_food(self, environment, food_position, food_energy):
         """Consume food and decrease hunger."""
-        self.hunger -= 50  # Decrease hunger by a fixed amount
+        self.hunger -= food_energy  # Decrease hunger by a fixed amount
         environment.remove_food(food_position)
         self.energy += food_energy
 
     def metabolize(self):
         """Reduce energy over time based on metabolism rate."""
-        self.energy -= self.metabolism_rate
+        self.energy -= self.metabolism_rate * self.speed_modifier / 5
 
     # Add methods for movement, behavior, etc.
 
@@ -433,30 +485,18 @@ if __name__ == "__main__":
     # Create and add organisms
     num_organisms = 10
     for i in range(num_organisms):
+
         # Generate positions in a grid-like pattern for simplicity
         x = (i * (env.width // num_organisms)) % env.width
         y = (i * (env.height // num_organisms)) % env.height
 
         # Create DNA and Traits for the organism
         dna = DNA.create_initial_dna()  # Generates random DNA
-        traits = Traits(dna)  # Decode DNA into traits
+        traits = Traits.decode_dna(dna) # Decode DNA into traits
 
         # Initialize organism with traits
-        org = Organism(
-            x=x,
-            y=y,
-            size=traits.get_trait('initial_size'),
-            speed=traits.get_trait('speed'),
-            metabolism_rate=traits.get_trait('metabolism_rate'),
-            color=traits.get_trait('skin_color'),
-            food_sense_distance=traits.get_trait('food_sense_distance'),
-            food_types=traits.get_trait('food_types'),
-            food_required_to_grow=traits.get_trait('food_required_to_grow'),
-            food_required_to_be_fertile=traits.get_trait('food_required_to_be_fertile'),
-            activeness=traits.get_trait('activeness'),
-            max_age=traits.get_trait('max_age')
-        )
-        print(traits)
+        org = Organism(dna, traits, x=x, y=y, energy=30)
+
         # Add organism to the visualizer
         visualizer.add_organism(org)
 
