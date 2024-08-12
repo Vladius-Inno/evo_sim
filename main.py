@@ -1,8 +1,8 @@
 import math
 import pygame
 import random
-import matplotlib.pyplot as plt
-import numpy as np
+# import matplotlib.pyplot as plt
+# import numpy as np
 
 
 class Environment:
@@ -40,7 +40,7 @@ class Environment:
         """Add food at a random location in the environment with a random energy value."""
         x = random.randint(0, self.width - 1)
         y = random.randint(0, self.height - 1)
-        energy = random.uniform(10, 30)  # Energy value between 10 and 30
+        energy = random.uniform(20, 40)  # Energy value between 10 and 30
         self.food_positions.append((x, y))
         self.food_energy[(x, y)] = energy
 
@@ -56,6 +56,19 @@ class Environment:
         if position in self.food_positions:
             self.food_positions.remove(position)
             del self.food_energy[position]
+
+    def get_organisms(self):
+        return visualizer.organisms
+
+    def get_organism_at(self, position):
+        for organism in visualizer.organisms:
+            if math.hypot(organism.x - position[0], organism.y - position[1]) < organism.size:
+                return organism
+        return None
+
+    def remove_organism(self, organism):
+        if organism in visualizer.organisms:
+            visualizer.organisms.remove(organism)
 
 
 class DNA:
@@ -73,21 +86,15 @@ class DNA:
     def create_initial_dna(cls):
         genes = {
             'initial_size': random.uniform(2.0, 4.0),
-            'metabolism_rate': random.uniform(0.4, 0.8),
-            'skin_color': random.choice(['red', 'blue']),
-            'food_types': random.choice([['plant'], ['prey'], ['corpse']]),
+            'metabolism_rate': random.uniform(0.2, 0.3),
+            # 'skin_color': random.choice(['red', 'blue']),
+            'food_types': random.choices(['plant', 'prey'], weights=[90, 10])[0],
             'aggressiveness': random.uniform(0.0, 1.0),
             'social_behavior': random.choice([True, False]),
-            #
-            # 'food_required_to_grow': random.uniform(40.0, 60.0),
-            # 'food_required_to_be_fertile': random.uniform(30.0, 40.0),
             'food_sense_distance': random.uniform(25.0, 35.0),
-
-            # 'reproduction_rate': random.uniform(0.1, 1.0),
-            # 'temperature_tolerance': (random.uniform(0.0, 10.0), random.uniform(30.0, 40.0)),
             'activeness': random.uniform(0.4, 1.0),  # Add activeness gene with a range between 0.1 and 1.0
             'max_age': random.randint(1000, 1200),  # Add max_age gene with random lifespan between 100 and 1000 ticks
-            'speed_modifier': random.uniform(1.0, 1.5)
+            # 'speed_modifier': random.uniform(1.0, 1.5)
         }
         return cls(genes)
 
@@ -102,16 +109,16 @@ class DNA:
                     mutated_genes[gene] *= random.uniform(0.9, 1.1)
                 elif gene == 'metabolism_rate':
                     mutated_genes[gene] *= random.uniform(0.9, 1.1)
-                elif gene == 'skin_color':
-                    mutated_genes[gene] = random.choice(['red', 'blue', 'green', 'yellow'])
+                # elif gene == 'skin_color':
+                #     mutated_genes[gene] = random.choice(['red', 'blue', 'green', 'yellow'])
                 # elif gene == 'food_required_to_grow':
                 #     mutated_genes[gene] *= random.uniform(0.9, 1.1)
                 # elif gene == 'food_required_to_be_fertile':
                 #     mutated_genes[gene] *= random.uniform(0.9, 1.1)
                 elif gene == 'food_sense_distance':
                     mutated_genes[gene] *= random.uniform(0.9, 1.1)
-                # elif gene == 'food_types':
-                #     mutated_genes[gene] = random.choice([['plant'], ['insect'], ['plant', 'insect']])
+                elif gene == 'food_types':
+                    mutated_genes[gene] = random.choice(['plant', 'prey'])
                 # elif gene == 'aggressiveness':
                 #     mutated_genes[gene] *= random.uniform(0.9, 1.1)
                 # elif gene == 'social_behavior':
@@ -171,29 +178,14 @@ class Traits:
 
         # Decode each gene type
         traits['size'] = genes.get('initial_size', 3.0)
-        # traits['aggressiveness'] = genes.get('aggressiveness', 0.5)
-        # traits['activeness'] = genes.get("activeness")  # Decode activeness gene
-        # traits['social_behavior'] = genes.get('social_behavior', True)
-
-        # traits['reproduction_rate'] = genes.get('reproduction_rate', 1.0)
-        # traits['temperature_tolerance'] = genes.get('temperature_tolerance', (10.0, 35.0))
-        # traits['max_age'] = genes.get('max_age')
-        # traits['speed_modifier'] = genes.get('speed_modifier')
 
         # calculated traits
-        traits['speed'] = genes.get('metabolism_rate') / traits['size'] * 100
-
-        # traits['food_required_to_grow'] = genes.get('food_required_to_grow', 20.0)
-        # traits['food_required_to_be_fertile'] = genes.get('food_required_to_be_fertile', 30.0)
-        traits['food_sense_distance'] = genes.get('food_sense_distance', 50.0)
+        traits['speed'] = genes.get('metabolism_rate') / traits['size'] * 50
+        traits['food_sense_distance'] = genes.get('food_sense_distance', 50.0) if genes.get('food_types') == 'plant' \
+            else genes.get('food_sense_distance', 50.0) * 1.2
+        traits['skin_color'] = 'blue' if genes.get('food_types') == 'plant' else 'red'
 
         return traits
-
-    # def get_trait(self, trait_name):
-    #     return self.traits.get(trait_name)
-
-    # def __str__(self):
-    #     return str(self.traits)
 
     @staticmethod
     def calculate_speed(dna, organism):
@@ -202,7 +194,10 @@ class Traits:
     @staticmethod
     def calculate_size(dna, organism):
         if (organism.max_age / 2 - organism.age) > 0:
-            return dna.get_gene('initial_size') * 1.4 / (organism.max_age - organism.age) * (organism.max_age / 2)
+            if organism.dna.get_gene('food_types') == 'prey':
+                return dna.get_gene('initial_size') * 1.8 / (organism.max_age - organism.age) * (organism.max_age / 2)
+            else:
+                return dna.get_gene('initial_size') * 1.4 / (organism.max_age - organism.age) * (organism.max_age / 2)
         else:
             return organism.size
 
@@ -312,23 +307,47 @@ class Visualizer:
     #
     #     return distribution
 
+    def update_population_history(self):
+        predators = sum(1 for organism in self.organisms if 'prey' in organism.dna.genes['food_types'])
+        non_predators = len(self.organisms) - predators
+        self.population_history.append((predators, non_predators))
+
     def draw_population_graph(self):
         self.pop_graph_surface.fill((0, 0, 0, 0))  # Clear the population graph surface
-        max_population = max(self.population_history) if self.population_history else 1
 
-        for i, population in enumerate(self.population_history[-1000:]):  # Limit history to last 400 ticks
-            height = int((population / max_population) * 100)
-            pygame.draw.line(self.pop_graph_surface, (255, 255, 255, 100),  # Transparent white
+        # Get the latest 1000 history entries or less if history is shorter
+        history_length = min(1200, len(self.population_history))
+        recent_history = self.population_history[-history_length:]
+
+        # Calculate the dynamic scaling factor based on the current population values
+        max_population = max(sum(p) for p in recent_history) if recent_history else 1
+
+        # Adjust scaling factor to provide better graph representation
+        scaling_factor = max_population * 1.2  # Allow room above the highest value
+
+        for i, (predators, non_predators) in enumerate(recent_history):
+            total_population = predators + non_predators
+
+            # Calculate the heights for each population group with dynamic scaling
+            predator_height = int((predators / scaling_factor) * 100)
+            non_predator_height = int((non_predators / scaling_factor) * 100)
+
+            # Draw predators (red) at the bottom
+            pygame.draw.line(self.pop_graph_surface, (255, 0, 0, 100),  # Transparent red
                              (i, self.pop_graph_surface.get_height()),
-                             (i, self.pop_graph_surface.get_height() - height), 2)
-            # pygame.draw.rect(self.pop_graph_surface, (255, 255, 255), (i, 100 - bar_height, 1, bar_height))
+                             (i, self.pop_graph_surface.get_height() - predator_height), 2)
+
+            # Draw non-predators (white) above the predators
+            pygame.draw.line(self.pop_graph_surface, (255, 255, 255, 100),  # Transparent white
+                             (i, self.pop_graph_surface.get_height() - predator_height),
+                             (i, self.pop_graph_surface.get_height() - predator_height - non_predator_height), 2)
 
         # Draw vertical label
         label = self.font.render('Population', True, (255, 255, 255))
         label = pygame.transform.rotate(label, 90)
         self.screen.blit(label, (0, self.env.height - 110))
 
-        self.screen.blit(self.pop_graph_surface, (10, 700))
+        self.screen.blit(self.pop_graph_surface, (10, self.env.height - 100))  # Adjust position as needed
 
     def draw_metabolism_graph(self):
         metabolism_bins = [0] * 10
@@ -426,7 +445,7 @@ class Visualizer:
                 # self.env.update()  # Update the environment if needed (e.g., food spawn)
 
                 # Add food every 5 ticks
-                if self.ticks % 10 == 0:
+                if self.ticks % 5 == 0:
                     self.env.add_food()
 
                 self.draw_environment()  # Draw the precomputed environment
@@ -448,12 +467,13 @@ class Visualizer:
                 avg_size = sum(organism.size for organism in self.organisms) / organisms_count
                 self.draw_text(f"Average size: {avg_size:.1f}", (800, 70))
 
-                self.population_history.append(len(self.organisms))
+                # self.population_history.append(len(self.organisms))
+                self.update_population_history()
+
                 self.draw_metabolism_graph()
                 self.draw_food_sense_graph()
                 self.draw_population_graph()
                 self.draw_activeness_graph()
-
 
                 pygame.display.flip()  # Update the display
 
@@ -469,7 +489,7 @@ class Organism:
         self.size = traits.get('size')
         self.speed = traits.get('speed')
         self.metabolism_rate = dna.genes.get('metabolism_rate')
-        self.color = dna.genes.get('skin_color')
+        self.color = traits.get('skin_color')
         self.food_sense_distance = dna.genes.get('food_sense_distance')
         self.food_types = dna.genes.get('food_types')
         # self.food_required_to_grow = traits.get('food_required_to_grow')
@@ -481,7 +501,6 @@ class Organism:
         self.max_age = dna.genes.get('max_age')  # Maximum age determined by DNA
         self.alive = True  # State to check if organism is alive
         self.energy = energy  # New energy attribute
-        self.speed_modifier = dna.genes.get('speed_modifier')
 
     def move_towards(self, target_x, target_y):
         """Move the organism towards a target point (target_x, target_y)."""
@@ -494,8 +513,8 @@ class Organism:
             dx /= distance
             dy /= distance
 
-            self.x += dx * self.speed * self.speed_modifier
-            self.y += dy * self.speed * self.speed_modifier
+            self.x += dx * self.speed  # * self.speed_modifier
+            self.y += dy * self.speed  # * self.speed_modifier
 
     def update(self, environment):
         """Update the organism's state."""
@@ -515,18 +534,40 @@ class Organism:
         closest_distance = float('inf')
         moved = False
 
-        for food_x, food_y in environment.get_food_positions():
-            distance = math.hypot(food_x - self.x, food_y - self.y)
-            if distance < closest_distance and distance <= self.food_sense_distance:
-                closest_food = (food_x, food_y)
-                closest_distance = distance
+        # for food_x, food_y in environment.get_food_positions():
+        #     distance = math.hypot(food_x - self.x, food_y - self.y)
+        #     if distance < closest_distance and distance <= self.food_sense_distance:
+        #         closest_food = (food_x, food_y)
+        #         closest_distance = distance
+
+        if 'plant' in self.food_types:
+            for food_x, food_y in environment.get_food_positions():
+                distance = math.hypot(food_x - self.x, food_y - self.y)
+                if distance < closest_distance and distance <= self.food_sense_distance:
+                    closest_food = (food_x, food_y)
+                    closest_distance = distance
+
+        if 'prey' in self.food_types:
+            for prey in environment.get_organisms():
+                if prey != self and prey.dna.get_gene('food_types') != 'prey' and prey.is_alive():
+                    distance = math.hypot(prey.x - self.x, prey.y - self.y)
+                    if distance < closest_distance and distance <= self.food_sense_distance:
+                        closest_food = (prey.x, prey.y)
+                        closest_distance = distance
 
         if closest_food:
             self.move_towards(*closest_food)
             moved = True
+
             if math.hypot(closest_food[0] - self.x, closest_food[1] - self.y) < self.size:
-                food_energy = environment.get_food_energy(closest_food)
-                self.consume_food(environment, closest_food, food_energy)
+                if 'plant' in self.food_types:
+                    food_energy = environment.get_food_energy(closest_food)
+                    self.consume_food(environment, closest_food, food_energy)
+                elif 'prey' in self.food_types:
+                    prey = environment.get_organism_at(closest_food)
+                    if prey:
+                        self.consume_prey(environment, prey)
+
         else:
             # Decide whether to move based on activeness
             if random.random() < self.activeness:
@@ -576,6 +617,7 @@ class Organism:
         child_traits = Traits.decode_dna(child_dna) # Decode DNA into traits
         child = Organism(child_dna, child_traits, child_x, child_y, child_energy)
         visualizer.add_organism(child)
+        # print('reproduced', dna.get_gene('food_types'), 'gave birth to', child.dna.get_gene('food_types'))
 
     def is_alive(self):
         if self.energy <= 0:
@@ -588,19 +630,27 @@ class Organism:
         environment.remove_food(food_position)
         self.energy += food_energy
 
+    def consume_prey(self, environment, prey):
+        """Consume another organism."""
+        self.hunger -= prey.size  # Decrease hunger by prey size or energy
+        prey.alive = False  # Kill the prey
+        self.energy += prey.energy # Gain energy from prey
+        # print('consumed energy', prey.energy)
+
     def metabolize(self, moved):
         """Reduce energy over time based on metabolism rate."""
         if moved:
-            self.energy -= self.metabolism_rate * self.speed_modifier / 10
+            self.energy -= self.metabolism_rate / 2  # * self.speed_modifier / 10
         else:
             self.energy -= self.metabolism_rate / 10
 
     # Add methods for movement, behavior, etc.
 
 
+
 if __name__ == "__main__":
     # Create environment
-    env = Environment(width=1000, height=800)
+    env = Environment(width=1200, height=750)
 
     # Create visualizer
     visualizer = Visualizer(environment=env)
