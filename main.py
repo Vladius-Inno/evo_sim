@@ -91,7 +91,7 @@ class DNA:
     def create_initial_dna(cls):
         genes = {
             'initial_size': random.uniform(2.0, 4.0),
-            'metabolism_rate': random.uniform(0.2, 0.3),
+            'metabolism_rate': random.uniform(0.2, 1.3),
             # 'skin_color': random.choice(['red', 'blue']),
             'food_types': random.choices(['plant', 'prey'], weights=[90, 10])[0],
             'aggressiveness': random.uniform(0.0, 1.0),
@@ -172,7 +172,7 @@ class DNA:
 
 
 class Traits:
-    def __init__(self, dna, organism=None):
+    def __init__(self, dna):
         self.dna = dna
         # self.traits = self.decode_dna()
 
@@ -189,6 +189,8 @@ class Traits:
         traits['food_sense_distance'] = genes.get('food_sense_distance', 50.0) if genes.get('food_types') == 'plant' \
             else genes.get('food_sense_distance', 50.0) * 1.2
         traits['skin_color'] = 'blue' if genes.get('food_types') == 'plant' else 'red'
+        traits['reproduction_rate'] = genes.get('metabolism_rate') * 5 if genes.get('food_types') == 'plant' \
+            else genes.get('metabolism_rate') * 2
 
         return traits
 
@@ -346,13 +348,6 @@ class Visualizer:
             int(organism.size)
         )
 
-    # def update_metabolism_distribution(self):
-    #     """Update the metabolism rate distribution."""
-    #     metabolism_rates = [org.dna.genes['metabolism_rate'] for org in self.organisms]
-    #     distribution, _ = np.histogram(metabolism_rates, bins=self.metabolism_bins)
-    #
-    #     return distribution
-
     def update_population_history(self):
         predators = sum(1 for organism in self.organisms if 'prey' in organism.dna.genes['food_types'])
         non_predators = len(self.organisms) - predators
@@ -396,80 +391,108 @@ class Visualizer:
         self.screen.blit(self.pop_graph_surface, (10, self.env.height - 100))  # Adjust position as needed
 
     def draw_metabolism_graph(self):
-        metabolism_bins = [0] * 10
-        for organism in self.organisms:
-            bin_index = min(int(organism.dna.genes['metabolism_rate'] * 10), 9)
+        self.font = pygame.font.SysFont(None, 16)
+        bin_size = 0.1
+        metabolism_rates = [organism.dna.get_gene('metabolism_rate') for organism in self.organisms]
+        max_rate = max(metabolism_rates)
+        # min_rate = min(metabolism_rates)
+        bins_count = int(max_rate / bin_size) + 1
+        metabolism_bins = [0] * bins_count
+
+        for metabolism_rate in metabolism_rates:
+            bin_index = int(metabolism_rate*10)
             metabolism_bins[bin_index] += 1
 
         self.graph_surface.fill((0, 0, 0, 0))  # Clear the graph surface
         max_value = max(metabolism_bins) if metabolism_bins else 1
 
+        index = 1
         for i, count in enumerate(metabolism_bins):
-            bar_height = int((count / max_value) * 100)
-            pygame.draw.rect(self.graph_surface, (255, 255, 255, 100), (i * 40, 100 - bar_height, 35, bar_height))
-
-            # Only label bins that have organisms in them
             if count > 0:
+                # Only draw and label bins that have organisms in them
+                index += 1
+                bar_height = int((count / max_value) * 100)
+                pygame.draw.rect(self.graph_surface, (255, 255, 255, 100), (index * 20 - 2, 100 - bar_height, 18, bar_height))
                 label = self.font.render(f'{i / 10:.1f}', True, (255, 255, 255))
-                self.graph_surface.blit(label, (i * 40, 110))
+                self.graph_surface.blit(label, (index * 20, 110))
 
         # Draw vertical label
+        self.font = pygame.font.SysFont(None, 24)
         label = self.font.render('Metabolism', True, (255, 255, 255))
         label = pygame.transform.rotate(label, 90)
         self.screen.blit(label, (0, 10))
-
         self.screen.blit(self.graph_surface, (10, 10))
 
     def draw_food_sense_graph(self):
-        sense_bins = [0] * 10
-        for organism in self.organisms:
-            bin_index = min(int(organism.dna.genes['food_sense_distance'] / 10), 9)
+
+        self.font = pygame.font.SysFont(None, 16)
+        bin_size = 10
+        sense_rates = [organism.dna.get_gene('food_sense_distance') for organism in self.organisms]
+        max_rate = max(sense_rates)
+        bins_count = int(max_rate / bin_size) + 1
+        sense_bins = [0] * bins_count
+
+        for sense_rate in sense_rates:
+            bin_index = int(sense_rate / 10)
             sense_bins[bin_index] += 1
 
         self.graph_surface.fill((0, 0, 0, 0))  # Clear the graph surface
         max_value = max(sense_bins) if sense_bins else 1
 
+        index = 1
         for i, count in enumerate(sense_bins):
-            bar_height = int((count / max_value) * 100)
-            pygame.draw.rect(self.graph_surface, (255, 255, 255, 100), (i * 40, 100 - bar_height, 35, bar_height))
-
-            # Only label bins that have organisms in them
             if count > 0:
+                # Only draw and label bins that have organisms in them
+                index += 1
+                bar_height = int((count / max_value) * 100)
+                pygame.draw.rect(self.graph_surface, (255, 255, 255, 100),
+                                 (300 + index * 20 - 2, 100 - bar_height, 18, bar_height))
                 label = self.font.render(f'{i * 10}', True, (255, 255, 255))
-                self.graph_surface.blit(label, (i * 40, 110))
+                self.graph_surface.blit(label, (300 + index * 20, 110))
 
         # Draw vertical label
-        label = self.font.render('Food Sense', True, (255, 255, 255))
+        self.font = pygame.font.SysFont(None, 24)
+        label = self.font.render('Sense Distance', True, (255, 255, 255))
         label = pygame.transform.rotate(label, 90)
-        self.screen.blit(label, (420, 10))
-
-        self.screen.blit(self.graph_surface, (430, 10))
+        self.screen.blit(label, (300, 10))
+        self.screen.blit(self.graph_surface, (10, 10))
 
     def draw_activeness_graph(self):
-        activeness_bins = [0] * 10
-        for organism in self.organisms:
-            bin_index = min(int(organism.dna.genes['activeness'] * 10), 9)
+
+        self.font = pygame.font.SysFont(None, 16)
+        bin_size = 0.1
+        activness_rates = [organism.dna.get_gene('activeness') for organism in self.organisms]
+        max_rate = max(activness_rates)
+        # min_rate = min(metabolism_rates)
+        bins_count = int(max_rate / bin_size) + 1
+        activeness_bins = [0] * bins_count
+
+        for activness_rate in activness_rates:
+            bin_index = int(activness_rate * 10)
             activeness_bins[bin_index] += 1
 
         self.graph_surface.fill((0, 0, 0, 0))  # Clear the graph surface
         max_value = max(activeness_bins) if activeness_bins else 1
 
+        index = 1
         for i, count in enumerate(activeness_bins):
-            bar_height = int((count / max_value) * 100)
-            pygame.draw.rect(self.graph_surface, (255, 255, 255, 100), (i * 40, 100 - bar_height, 35, bar_height))
-
-            # Only label bins that have organisms in them
             if count > 0:
+                # Only draw and label bins that have organisms in them
+                index += 1
+                bar_height = int((count / max_value) * 100)
+                pygame.draw.rect(self.graph_surface, (255, 255, 255, 100),
+                                 (600 + index * 20 - 2, 100 - bar_height, 18, bar_height))
                 label = self.font.render(f'{i / 10:.1f}', True, (255, 255, 255))
-                self.graph_surface.blit(label, (i * 40, 110))
+                self.graph_surface.blit(label, (600 + index * 20, 110))
 
         # Draw vertical label
+        self.font = pygame.font.SysFont(None, 24)
         label = self.font.render('Activeness', True, (255, 255, 255))
         label = pygame.transform.rotate(label, 90)
-        self.screen.blit(label, (100, 150))
+        self.screen.blit(label, (600, 10))
+        self.screen.blit(self.graph_surface, (10, 10))
 
-        # Place the graph below the others
-        self.screen.blit(self.graph_surface, (10, 130))
+
 
     def run(self):
         """Run the visualization loop."""
@@ -506,16 +529,19 @@ class Visualizer:
 
                 # Display the organism count
                 organisms_count = len(self.organisms)
-                self.draw_text(f"Organisms: {organisms_count}", (800, 10))
-                self.draw_text(f"Ticks: {self.ticks}", (800, 30))
+
+                self.draw_text(f"Organisms: {organisms_count}", (1000, 10))
+                self.draw_text(f"Ticks: {self.ticks}", (1000, 30))
                 avg_speed = sum(organism.speed for organism in self.organisms) / organisms_count
-                self.draw_text(f"Average speed: {avg_speed:.1f}", (800, 50))
+                self.draw_text(f"Average speed: {avg_speed:.1f}", (1000, 50))
                 avg_size = sum(organism.size for organism in self.organisms) / organisms_count
-                self.draw_text(f"Average size: {avg_size:.1f}", (800, 70))
+                self.draw_text(f"Average size: {avg_size:.1f}", (1000, 70))
+                max_age = max(organism.age for organism in self.organisms)
+                self.draw_text(f"Maximum age: {max_age}", (1000, 90))
+                max_energy = max(organism.energy for organism in self.organisms)
+                self.draw_text(f"Maximum energy: {max_energy:.1f}", (1000, 110))
 
-                # self.population_history.append(len(self.organisms))
                 self.update_population_history()
-
                 self.draw_metabolism_graph()
                 self.draw_food_sense_graph()
                 self.draw_population_graph()
@@ -526,28 +552,30 @@ class Visualizer:
                 self.clock.tick(60)  # Cap the frame rate at 60 FPS
 
 
-class Organism():
-    def __init__(self, dna, traits, x, y, energy, environment):
+class Organism:
+    def __init__(self, dna, x, y, energy, environment):
+        self.traits = Traits.decode_dna(dna)  # Decode DNA into traits
         self.x = x
         self.y = y
         self.dna = dna
         self.environment = environment
         # self.size = traits.get_trait('size')
-        self.size = traits.get('size')
-        self.speed = traits.get('speed')
-        self.metabolism_rate = dna.genes.get('metabolism_rate')
-        self.color = traits.get('skin_color')
-        self.food_sense_distance = dna.genes.get('food_sense_distance')
-        self.food_types = dna.genes.get('food_types')
+        self.size = self.traits.get('size')
+        self.speed = self.traits.get('speed')
+        self.metabolism_rate = dna.get_gene('metabolism_rate')
+        self.color = self.traits.get('skin_color')
+        self.food_sense_distance = dna.get_gene('food_sense_distance')
+        self.food_types = dna.get_gene('food_types')
         # self.food_required_to_grow = traits.get('food_required_to_grow')
         # self.food_required_to_be_fertile = traits.get('food_required_to_be_fertile')
-        self.activeness = dna.genes.get('activeness')  # gene for movement activity
+        self.activeness = dna.get_gene('activeness')  # gene for movement activity
         self.direction = (random.uniform(-1, 1), random.uniform(-1, 1))  # Initial random direction
         self.hunger = 50  # Start with 50 hunger
         self.age = 0  # Initialize age to 0
-        self.max_age = dna.genes.get('max_age')  # Maximum age determined by DNA
+        self.max_age = dna.get_gene('max_age')  # Maximum age determined by DNA
         self.alive = True  # State to check if organism is alive
         self.energy = energy  # New energy attribute
+        self.reproduction_rate = self.traits.get('reproduction_rate')
 
     def move_towards(self, target_x, target_y):
         """Move the organism towards a target point (target_x, target_y)."""
@@ -563,6 +591,14 @@ class Organism():
             self.x += dx * self.speed  # * self.speed_modifier
             self.y += dy * self.speed  # * self.speed_modifier
 
+    @staticmethod
+    def calculate_death_probability(age, max_age):
+        if age < 0.6 * max_age:
+            return 0  # No death probability before 60% of max age
+        k = 2  # Steepness constant, adjust as needed
+        death_probability = 1 - math.exp(-((age - 0.6 * max_age) / (0.4 * max_age)) * k)
+        return death_probability
+
     def update(self, environment):
         """Update the organism's state."""
         if not self.is_alive():
@@ -571,21 +607,13 @@ class Organism():
         self.age += 1  # Increment age each tick
 
         # Check for death probability
-        if self.age > self.max_age * 0.5:  # Start considering death after 50% of max age
-            death_probability = (self.age - self.max_age * 0.5) / (self.max_age * 0.5)
-            if random.random() < death_probability:
-                self.alive = False
-                return
+        if random.random() < self.calculate_death_probability(self.age, self.max_age):
+            self.alive = False
+            return
 
         closest_food = None
         closest_distance = float('inf')
         moved = False
-
-        # for food_x, food_y in environment.get_food_positions():
-        #     distance = math.hypot(food_x - self.x, food_y - self.y)
-        #     if distance < closest_distance and distance <= self.food_sense_distance:
-        #         closest_food = (food_x, food_y)
-        #         closest_distance = distance
 
         if 'plant' in self.food_types:
             for food_x, food_y in environment.get_food_positions():
@@ -661,8 +689,7 @@ class Organism():
         child_y = self.y + random.uniform(-5, 5)
         child_energy = 30  # Transfer energy to the child
         self.energy -= 30  # Deduct energy from the parent
-        child_traits = Traits.decode_dna(child_dna) # Decode DNA into traits
-        child = Organism(child_dna, child_traits, child_x, child_y, child_energy, self.environment)
+        child = Organism(child_dna, child_x, child_y, child_energy, self.environment)
         self.environment.add_organism(child)
         # print('reproduced', dna.get_gene('food_types'), 'gave birth to', child.dna.get_gene('food_types'))
 
@@ -694,6 +721,13 @@ class Organism():
     # Add methods for movement, behavior, etc.
 
 
+def create_organism(x, y, env):
+    # Create DNA and Traits for the organism
+    dna = DNA.create_initial_dna()  # Generates random DNA
+    # Initialize organism with traits
+    return Organism(dna, x=x, y=y, energy=30, environment=env)
+
+
 def main():
 
     # pygame.init()
@@ -723,12 +757,7 @@ def main():
         x = (i * (env.width // num_organisms)) % env.width
         y = (i * (env.height // num_organisms)) % env.height
 
-        # Create DNA and Traits for the organism
-        dna = DNA.create_initial_dna()  # Generates random DNA
-        traits = Traits.decode_dna(dna) # Decode DNA into traits
-
-        # Initialize organism with traits
-        org = Organism(dna, traits, x=x, y=y, energy=30, environment=env)
+        org = create_organism(x, y, env)
 
         # Add organism to the visualizer
         env.add_organism(org)
