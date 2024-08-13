@@ -16,6 +16,7 @@ class Environment:
         self.light_radius = min(width, height) / 2  # Radius of light circle
         self.food_positions = []
         self.food_energy = {}  # Map positions to energy levels
+        self.organisms = []
 
     def get_light_level(self, x, y):
         """Calculate the light level at coordinates (x, y)."""
@@ -44,6 +45,10 @@ class Environment:
         self.food_positions.append((x, y))
         self.food_energy[(x, y)] = energy
 
+    def add_organism(self, organism):
+        """Add an organism to be displayed."""
+        self.organisms.append(organism)
+
     def get_food_positions(self):
         return self.food_positions
 
@@ -58,17 +63,17 @@ class Environment:
             del self.food_energy[position]
 
     def get_organisms(self):
-        return visualizer.organisms
+        return self.organisms
 
     def get_organism_at(self, position):
-        for organism in visualizer.organisms:
+        for organism in self.organisms:
             if math.hypot(organism.x - position[0], organism.y - position[1]) < organism.size:
                 return organism
         return None
 
     def remove_organism(self, organism):
-        if organism in visualizer.organisms:
-            visualizer.organisms.remove(organism)
+        if organism in self.organisms:
+            self.organisms.remove(organism)
 
 
 class DNA:
@@ -202,6 +207,47 @@ class Traits:
             return organism.size
 
 
+class SetupScreen:
+    def __init__(self, screen):
+        self.screen = screen
+        self.font = pygame.font.Font(None, 36)
+        self.metabolism_low = 0.05
+        self.metabolism_high = 0.1
+        self.food_amount = "Medium"
+        self.initial_organisms = 20
+
+        # Create UI elements like sliders, buttons, etc.
+        self.create_ui_elements()
+
+    def create_ui_elements(self):
+        # Create sliders and buttons
+        pass
+
+    def draw(self):
+        self.screen.fill((0, 0, 0))  # Clear screen
+        # Draw sliders, buttons, and other UI elements
+        pygame.display.flip()
+
+    def handle_events(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # Handle slider and button interactions
+            pass
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:
+                # Start the simulation with selected settings
+                return self.start_simulation()
+
+    def start_simulation(self):
+        # Pass the settings to the simulation initialization
+        settings = {
+            'metabolism_low': self.metabolism_low,
+            'metabolism_high': self.metabolism_high,
+            'food_amount': self.food_amount,
+            'initial_organisms': self.initial_organisms
+        }
+        return settings
+
+
 class Visualizer:
     def __init__(self, environment):
         pygame.init()
@@ -209,7 +255,7 @@ class Visualizer:
         self.screen = pygame.display.set_mode((environment.width, environment.height))
         pygame.display.set_caption('Evolution Simulator')
         self.clock = pygame.time.Clock()
-        self.organisms = []  # List to hold organisms for visualization
+        self.organisms = environment.organisms  # List to hold organisms for visualization
         self.ticks = 0  # Track simulation ticks
         self.skip_ticks = 1
         self.paused = False  # Track whether the simulation is paused
@@ -219,9 +265,9 @@ class Visualizer:
         self.metabolism_bins = [i * 0.05 for i in range(21)]  # Bins for metabolism rate distribution
         self.population_history = []
 
-    def add_organism(self, organism):
-        """Add an organism to be displayed."""
-        self.organisms.append(organism)
+    # def add_organism(self, organism):
+    #     """Add an organism to be displayed."""
+    #     self.organisms.append(organism)
 
     def precompute_environment(self):
         """Precompute the environment drawing and store it as a surface."""
@@ -480,11 +526,12 @@ class Visualizer:
                 self.clock.tick(60)  # Cap the frame rate at 60 FPS
 
 
-class Organism:
-    def __init__(self, dna, traits, x, y, energy):
+class Organism():
+    def __init__(self, dna, traits, x, y, energy, environment):
         self.x = x
         self.y = y
         self.dna = dna
+        self.environment = environment
         # self.size = traits.get_trait('size')
         self.size = traits.get('size')
         self.speed = traits.get('speed')
@@ -601,8 +648,8 @@ class Organism:
 
         self.metabolize(moved)
 
-        self.speed = Traits.calculate_speed(dna, self)
-        self.size = Traits.calculate_size(dna, self)
+        self.speed = Traits.calculate_speed(self.dna, self)
+        self.size = Traits.calculate_size(self.dna, self)
 
         if self.age > self.max_age * 0.1 and self.energy >= 50:
             self.reproduce(self.dna)
@@ -615,8 +662,8 @@ class Organism:
         child_energy = 30  # Transfer energy to the child
         self.energy -= 30  # Deduct energy from the parent
         child_traits = Traits.decode_dna(child_dna) # Decode DNA into traits
-        child = Organism(child_dna, child_traits, child_x, child_y, child_energy)
-        visualizer.add_organism(child)
+        child = Organism(child_dna, child_traits, child_x, child_y, child_energy, self.environment)
+        self.environment.add_organism(child)
         # print('reproduced', dna.get_gene('food_types'), 'gave birth to', child.dna.get_gene('food_types'))
 
     def is_alive(self):
@@ -647,8 +694,21 @@ class Organism:
     # Add methods for movement, behavior, etc.
 
 
+def main():
 
-if __name__ == "__main__":
+    # pygame.init()
+    # screen = pygame.display.set_mode((800, 600))
+    # setup_screen = SetupScreen(screen)
+    #
+    # while True:
+    #     for event in pygame.event.get():
+    #         if event.type == pygame.QUIT:
+    #             pygame.quit()
+    #             return
+    #         setup_screen.handle_events(event)
+    #
+    #     setup_screen.draw()
+
     # Create environment
     env = Environment(width=1200, height=750)
 
@@ -668,11 +728,16 @@ if __name__ == "__main__":
         traits = Traits.decode_dna(dna) # Decode DNA into traits
 
         # Initialize organism with traits
-        org = Organism(dna, traits, x=x, y=y, energy=30)
+        org = Organism(dna, traits, x=x, y=y, energy=30, environment=env)
 
         # Add organism to the visualizer
-        visualizer.add_organism(org)
+        env.add_organism(org)
 
     # Run the simulation
     visualizer.run()
+
+
+if __name__ == "__main__":
+
+    main()
 
