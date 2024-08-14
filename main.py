@@ -60,7 +60,10 @@ class Environment:
         """Remove food from a specific location after it's consumed."""
         if position in self.food_positions:
             self.food_positions.remove(position)
-            del self.food_energy[position]
+            try:
+                del self.food_energy[position]
+            except KeyError as e:
+                print(f'Food removal error at {position}')
 
     def get_organisms(self):
         return self.organisms
@@ -191,6 +194,7 @@ class Traits:
         traits['skin_color'] = 'blue' if genes.get('food_types') == 'plant' else 'red'
         traits['reproduction_rate'] = genes.get('metabolism_rate') * 5 if genes.get('food_types') == 'plant' \
             else genes.get('metabolism_rate') * 2
+        traits['max_energy'] = genes.get('metabolism_rate') * 1000
 
         return traits
 
@@ -553,11 +557,16 @@ class Visualizer:
 
 
 class Organism:
+
+    next_id = 0
+
     def __init__(self, dna, x, y, energy, environment):
         self.traits = Traits.decode_dna(dna)  # Decode DNA into traits
         self.x = x
         self.y = y
         self.dna = dna
+        self.id = Organism.next_id
+        Organism.next_id += 1
         self.environment = environment
         # self.size = traits.get_trait('size')
         self.size = self.traits.get('size')
@@ -575,7 +584,9 @@ class Organism:
         self.max_age = dna.get_gene('max_age')  # Maximum age determined by DNA
         self.alive = True  # State to check if organism is alive
         self.energy = energy  # New energy attribute
+        self.max_energy = self.traits.get('max_energy')
         self.reproduction_rate = self.traits.get('reproduction_rate')
+        self.fertile_development = 0
 
     def move_towards(self, target_x, target_y):
         """Move the organism towards a target point (target_x, target_y)."""
@@ -679,7 +690,11 @@ class Organism:
         self.speed = Traits.calculate_speed(self.dna, self)
         self.size = Traits.calculate_size(self.dna, self)
 
-        if self.age > self.max_age * 0.1 and self.energy >= 50:
+        if (self.age > self.max_age * 0.1) and self.energy >= 31:
+            self.fertile_development += 1
+            self.energy -= 1
+
+        if (self.age > self.max_age * 0.1) and self.fertile_development >= 30:
             self.reproduce(self.dna)
 
     def reproduce(self, dna):
@@ -688,10 +703,10 @@ class Organism:
         child_x = self.x + random.uniform(-5, 5)
         child_y = self.y + random.uniform(-5, 5)
         child_energy = 30  # Transfer energy to the child
-        self.energy -= 30  # Deduct energy from the parent
+        self.fertile_development -= 30  # Deduct energy from the parent
         child = Organism(child_dna, child_x, child_y, child_energy, self.environment)
         self.environment.add_organism(child)
-        # print('reproduced', dna.get_gene('food_types'), 'gave birth to', child.dna.get_gene('food_types'))
+        # print(f'{self.id}, energy {self.energy} reproduced {child.id}')
 
     def is_alive(self):
         if self.energy <= 0:
@@ -702,12 +717,15 @@ class Organism:
         """Consume food and decrease hunger."""
         self.hunger -= food_energy  # Decrease hunger by a fixed amount
         environment.remove_food(food_position)
+        # print(f' {self.id}, energy {self.energy} consumed plant for {food_energy}')
         self.energy += food_energy
 
     def consume_prey(self, environment, prey):
         """Consume another organism."""
         self.hunger -= prey.size  # Decrease hunger by prey size or energy
         prey.alive = False  # Kill the prey
+        # print(f' {self.id}, energy {self.energy} consumed prey {prey.id} for {prey.energy}')
+
         self.energy += prey.energy # Gain energy from prey
         # print('consumed energy', prey.energy)
 
