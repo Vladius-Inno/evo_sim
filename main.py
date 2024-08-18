@@ -255,25 +255,76 @@ class SetupScreen:
 
 
 class Visualizer:
-    def __init__(self, environment):
+    def __init__(self, environment, screen_width, screen_height):
         pygame.init()
         self.env = environment
-        self.screen = pygame.display.set_mode((environment.width, environment.height))
         pygame.display.set_caption('Evolution Simulator')
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.camera_x = 0
+        self.camera_y = 0
+        self.zoom_factor = 1.0
+        self.screen = pygame.display.set_mode((screen_width, screen_height))
         self.clock = pygame.time.Clock()
         self.organisms = environment.organisms  # List to hold organisms for visualization
         self.ticks = 0  # Track simulation ticks
         self.skip_ticks = 1
         self.paused = False  # Track whether the simulation is paused
         self.font = pygame.font.SysFont(None, 24)
-        self.graph_surface = pygame.Surface((environment.width, 200), pygame.SRCALPHA)  # Transparent surface for graphs
-        self.pop_graph_surface = pygame.Surface((environment.width, 100), pygame.SRCALPHA)  # Transparent surface for population graph
-        self.metabolism_bins = [i * 0.05 for i in range(21)]  # Bins for metabolism rate distribution
+        self.graph_surface = pygame.Surface((self.screen_width, 200), pygame.SRCALPHA)  # Transparent surface for graphs
+        self.pop_graph_surface = pygame.Surface((self.screen_height, 100), pygame.SRCALPHA)  # Transparent surface for population graph
+        # self.metabolism_bins = [i * 0.05 for i in range(21)]  # Bins for metabolism rate distribution
         self.population_history = []
 
     # def add_organism(self, organism):
     #     """Add an organism to be displayed."""
     #     self.organisms.append(organism)
+
+    def pan_camera(self, dx, dy):
+        # Calculate the maximum pan limits
+        max_pan_x = max(0, self.env.width * self.zoom_factor - self.screen_width)
+        max_pan_y = max(0, self.env.height * self.zoom_factor - self.screen_height)
+
+        # Update the camera position, respecting the pan limits
+        self.camera_x = min(max(self.camera_x + dx, 0), max_pan_x)
+        self.camera_y = min(max(self.camera_y + dy, 0), max_pan_y)
+
+    def zoom_in(self):
+        self.zoom_factor *= 1.1  # Increase zoom
+        self.update_surface()
+
+    def zoom_out(self):
+        self.zoom_factor /= 1.1  # Decrease zoom
+        self.update_surface()
+
+    def handle_zoom(self, zoom_in):
+        previous_zoom_factor = self.zoom_factor
+
+        if zoom_in:
+            self.zoom_factor *= 1.1  # Zoom in
+        else:
+            self.zoom_factor *= 0.9  # Zoom out
+
+        # Limit zoom-out and zoom-in factors
+        self.zoom_factor = min(max(self.zoom_factor, 0.5), 2.0)  # Min zoom 50%, max zoom 200%
+
+        # Adjust camera position to ensure it stays within bounds
+        self.camera_x = min(max(self.camera_x * (self.zoom_factor / previous_zoom_factor), 0),
+                            max(0, self.env.width * self.zoom_factor - self.screen_width))
+        self.camera_y = min(max(self.camera_y * (self.zoom_factor / previous_zoom_factor), 0),
+                            max(0, self.env.height * self.zoom_factor - self.screen_height))
+
+        # Scale the environment surface only when zoom changes
+        self.scaled_env_surface = pygame.transform.scale(
+            self.env_surface,
+            (int(self.env.width * self.zoom_factor), int(self.env.height * self.zoom_factor))
+        )
+
+    def update_surface(self):
+        """Update the precomputed environment surface to match the current zoom level."""
+        new_width = int(self.env.width * self.zoom_factor)
+        new_height = int(self.env.height * self.zoom_factor)
+        self.env_surface = pygame.transform.smoothscale(self.env_surface, (new_width, new_height))
 
     def precompute_environment(self):
         """Precompute the environment drawing and store it as a surface."""
@@ -335,22 +386,34 @@ class Visualizer:
         self.screen.blit(text_surface, position)
 
     def draw_environment(self):
+        # Blit the precomputed and scaled environment surface
+        # self.screen.blit(self.scaled_env_surface, (-self.camera_x, -self.camera_y))
+
+        # Zoomed and panned blitting
+        zoomed_env_surface = pygame.transform.scale(self.env_surface,
+                                                    (int(self.env.width * self.zoom_factor),
+                                                     int(self.env.height * self.zoom_factor)))
+
         """Blit the precomputed environment surface to the screen."""
-        self.screen.blit(self.env_surface, (0, 0))
+        self.screen.blit(zoomed_env_surface, (-self.camera_x , -self.camera_y))
 
         # Draw food
         for food_position in self.env.get_food_positions():
-            pygame.draw.circle(self.screen, (0, 255, 0), food_position, 3)
+            screen_x = (food_position[0] - self.camera_x) * self.zoom_factor
+            screen_y = (food_position[1] - self.camera_y) * self.zoom_factor
+            # Draw food if within the current view
+            if 0 <= screen_x <= self.screen_width and 0 <= screen_y <= self.screen_height:
+                pygame.draw.circle(self.screen, (0, 255, 0), (int(screen_x), int(screen_y)), int(3 * self.zoom_factor))
 
     def draw_organism(self, organism):
         """Draw an organism on the screen using its size and color."""
         color = pygame.Color(organism.color)  # Convert organism color to pygame.Color
-        pygame.draw.circle(
-            self.screen,
-            color,
-            (int(organism.x), int(organism.y)),
-            int(organism.size)
-        )
+        screen_x = (organism.x - self.camera_x) * self.zoom_factor
+        screen_y = (organism.y - self.camera_y) * self.zoom_factor
+
+        # Draw organism if within the current view
+        if 0 <= screen_x <= self.screen_width and 0 <= screen_y <= self.screen_height:
+            pygame.draw.circle(self.screen, organism.color, (int(screen_x), int(screen_y)), int(organism.size * self.zoom_factor))
 
     def update_population_history(self):
         predators = sum(1 for organism in self.organisms if 'prey' in organism.dna.genes['food_types'])
@@ -496,8 +559,6 @@ class Visualizer:
         self.screen.blit(label, (600, 10))
         self.screen.blit(self.graph_surface, (10, 10))
 
-
-
     def run(self):
         """Run the visualization loop."""
         self.precompute_environment()  # Precompute the environment initially
@@ -508,14 +569,39 @@ class Visualizer:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                    self.paused = not self.paused  # Toggle the paused state when spacebar is pressed
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        self.paused = not self.paused  # Toggle the paused state when spacebar is pressed
+                    elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
+                        self.zoom_in()
+                    elif event.key == pygame.K_MINUS:
+                        self.zoom_out()
+                    elif event.key == pygame.K_LEFT:
+                        self.pan_camera(-10, 0)
+                    elif event.key == pygame.K_RIGHT:
+                        self.pan_camera(10, 0)
+                    elif event.key == pygame.K_UP:
+                        self.pan_camera(0, -10)
+                    elif event.key == pygame.K_DOWN:
+                        self.pan_camera(0, 10)
+
+            self.zoom_factor = max(self.zoom_factor, 1200 / self.env.width)  # Minimum zoom-out to 50%
 
             if not self.paused:
                 self.ticks += 1
                 generation += 1
 
-                # self.env.update()  # Update the environment if needed (e.g., food spawn)
+                keys = pygame.key.get_pressed()
+
+                # Panning with arrow keys
+                # if keys[pygame.K_LEFT]:
+                #     self.pan_camera(-10, 0)
+                # if keys[pygame.K_RIGHT]:
+                #     self.pan_camera(10, 0)
+                # if keys[pygame.K_UP]:
+                #     self.pan_camera(0, -10)
+                # if keys[pygame.K_DOWN]:
+                #     self.pan_camera(0, 10)
 
                 # Add food every 5 ticks
                 if self.ticks % 5 == 0:
@@ -527,7 +613,11 @@ class Visualizer:
                 for organism in self.organisms:
                     if organism.is_alive():
                         organism.update(self.env)
-                        self.draw_organism(organism)
+                        screen_x = organism.x - self.camera_x
+                        screen_y = organism.y - self.camera_y
+                        # Draw organism if within the current view
+                        if 0 <= screen_x <= self.screen_width and 0 <= screen_y <= self.screen_height:
+                            self.draw_organism(organism)
                     else:
                         self.organisms.remove(organism)
 
@@ -762,13 +852,13 @@ def main():
     #     setup_screen.draw()
 
     # Create environment
-    env = Environment(width=1200, height=750)
+    env = Environment(width=2000, height=1550)
 
     # Create visualizer
-    visualizer = Visualizer(environment=env)
+    visualizer = Visualizer(environment=env, screen_width=1200, screen_height=750)
 
     # Create and add organisms
-    num_organisms = 10
+    num_organisms = 20
     for i in range(num_organisms):
 
         # Generate positions in a grid-like pattern for simplicity
