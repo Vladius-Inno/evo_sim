@@ -13,46 +13,82 @@ class Visualizer:
         self.zoom_factor = 0.5
         self.screen = pygame.display.set_mode((screen_width, screen_height))
         # GUI block
+        self.controls_surface = pygame.Surface((200, self.screen_height),
+                                               pygame.SRCALPHA)  # Transparent surface for population graph
+
         self.manager = pygame_gui.UIManager((screen_width, screen_height))
         # Information Box
-        self.info_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((800, 50), (350, 150)),
+        self.info_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((950, 50), (220, 150)),
                                                       starting_height=1,
                                                       manager=self.manager)
+        # Create labels for displaying information
+        self.tick_label = pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect((15, 5), (-1, 20)),
+            text="Ticks: 0",
+            manager=self.manager,
+            container=self.info_panel
+        )
+
+        self.organism_label = pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect((15, 30), (-1, 20)),
+            text="Organisms: 0",
+            manager=self.manager,
+            container=self.info_panel
+        )
+
+        self.avg_speed_label = pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect((15, 55), (-1, 20)),
+            text="Average speed: 0",
+            manager=self.manager,
+            container=self.info_panel
+        )
+
+        self.avg_size_label = pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect((15, 80), (-1, 20)),
+            text="Average: size",
+            manager=self.manager,
+            container=self.info_panel
+        )
         # Control Panel
-        control_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((800, 250), (350, 250)),
-                                                    starting_height=0,
-                                                    manager=self.manager)
+        self.control_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((950, 220), (220, 150)),
+                                                         starting_height=0,
+                                                         manager=self.manager)
+
         self.start_pause_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((10, 10), (100, 50)),
                                                                text='Start',
                                                                manager=self.manager,
-                                                               container=control_panel)
+                                                               container=self.control_panel)
         self.food_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((10, 70), (200, 25)),
                                                                   start_value=50,
                                                                   value_range=(0, 100),
                                                                   manager=self.manager,
-                                                                  container=control_panel)
+                                                                  container=self.control_panel)
+        self.food_slider.disable()
         self.tick_skip_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((10, 110), (200, 25)),
                                                                        start_value=1,
                                                                        value_range=(1, 10),
                                                                        manager=self.manager,
-                                                                       container=control_panel)
-
+                                                                       container=self.control_panel)
+        self.tick_skip_slider.disable()
         # Display Panel
-        self.display_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((800, 550), (350, 150)),
+        self.display_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((950, 390), (220, 150)),
                                                          starting_height=1,
                                                          manager=self.manager)
-        predators_checkbox = pygame_gui.elements.UISelectionList(relative_rect=pygame.Rect((10, 10), (200, 75)),
-                                                                 item_list=['Predators'],
-                                                                 manager=self.manager,
-                                                                 container=self.display_panel)
-        energy_checkbox = pygame_gui.elements.UISelectionList(relative_rect=pygame.Rect((10, 50), (200, 75)),
-                                                              item_list=['Energy'],
-                                                              manager=self.manager,
-                                                              container=self.display_panel)
-        natural_colors_checkbox = pygame_gui.elements.UISelectionList(relative_rect=pygame.Rect((10, 90), (200, 75)),
-                                                                      item_list=['Natural Colors'],
+
+        self.predators_checkbox = pygame_gui.elements.UISelectionList(relative_rect=pygame.Rect((10, 10), (200, 66)),
+                                                                      item_list=['Predators', 'Energy', 'Natural'],
                                                                       manager=self.manager,
+                                                                      default_selection='Natural',
                                                                       container=self.display_panel)
+        # self.energy_checkbox = pygame_gui.elements.UISelectionList(relative_rect=pygame.Rect((10, 50), (200, 75)),
+        #                                                            item_list=['Energy'],
+        #                                                            manager=self.manager,
+        #                                                            container=self.display_panel)
+        # self.natural_colors_checkbox = pygame_gui.elements.UISelectionList(
+        #     relative_rect=pygame.Rect((10, 90), (200, 75)),
+        #     item_list=['Natural Colors'],
+        #     manager=self.manager,
+        #     container=self.display_panel)
 
         self.env = environment
         """Precompute the environment drawing and store it as a surface."""
@@ -62,7 +98,7 @@ class Visualizer:
 
         self.font = pygame.font.SysFont(None, 24)
         self.graph_surface = pygame.Surface((self.screen_width, 200), pygame.SRCALPHA)  # Transparent surface for graphs
-        self.pop_graph_surface = pygame.Surface((self.screen_height, 100),
+        self.pop_graph_surface = pygame.Surface((self.screen_width-10, 100),
                                                 pygame.SRCALPHA)  # Transparent surface for population graph
         self.population_history = []
 
@@ -106,6 +142,13 @@ class Visualizer:
             self.env_surface,
             (int(self.env.width * self.zoom_factor), int(self.env.height * self.zoom_factor))
         )
+
+    def update_labels(self, ticks, organism_count, avg_speed, avg_size):
+        # Update label texts based on current state
+        self.tick_label.set_text(f"Ticks: {ticks}")
+        self.organism_label.set_text(f"Organisms: {organism_count}")
+        self.avg_speed_label.set_text(f"Average speed: {avg_speed:.2f}")
+        self.avg_size_label.set_text(f"Average size: {avg_size:.2f}")
 
     def precompute_environment(self):
         # Define the temperature border values
@@ -338,3 +381,14 @@ class Visualizer:
         label = pygame.transform.rotate(label, 90)
         self.screen.blit(label, (600, 10))
         self.screen.blit(self.graph_surface, (10, 10))
+
+    def draw_ui(self, ticks, organisms_count, avg_speed, avg_size):
+        self.manager.draw_ui(self.screen)
+        # Update the GUI labels with new data
+        self.update_labels(ticks, organisms_count, avg_speed, avg_size)
+        # self.controls_surface.fill((0, 0, 0, 0))  # Clear the graph surface
+        # Fill part of the overlay surface with semi-transparent color
+        # self.controls_surface.fill((0, 0, 0, 128), (1000, 50, 250, 150))  # Semi-transparent black for the info panel
+        # self.screen.blit(self.controls_surface, (1000, 50))
+
+

@@ -179,6 +179,6 @@ class Organism:
     def metabolize(self, moved):
         """Reduce energy over time based on metabolism rate."""
         if moved:
-            self.energy -= self.metabolism_rate / 2  # * self.speed_modifier / 10
+            self.energy -= self.metabolism_rate / 5  # * self.speed_modifier / 10
         else:
             self.energy -= self.metabolism_rate / 10

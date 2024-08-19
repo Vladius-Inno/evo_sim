@@ -18,11 +18,11 @@ def main():
     # Create visualizer
     visualizer = Visualizer(environment=env, screen_width=1200, screen_height=750)
 
-    num_organisms = 50
+    num_organisms = 100
     for i in range(num_organisms):
         # Generate positions in a grid-like pattern for simplicity
-        x = (i * (env.width // num_organisms)) % env.width
-        y = (i * (env.height // num_organisms)) % env.height
+        x = (i * (env.width // num_organisms))  # % env.width
+        y = (i * (env.height // num_organisms))  # % env.height
 
         org = create_organism(x, y, env)
 

@@ -13,19 +13,16 @@ class Simulation:
         self.overlay_is_on = True
         self.controls_are_on = True
 
-    def overlay_draw(self):
-        organisms_count = len(self.env.organisms)
+    def overlay_draw(self, organisms_count):
 
-        self.viz.draw_text(f"Organisms: {organisms_count}", (1000, 10))
-        self.viz.draw_text(f"Ticks: {self.ticks}", (1000, 30))
-        avg_speed = sum(organism.speed for organism in self.env.organisms) / organisms_count if organisms_count else 0
-        self.viz.draw_text(f"Average speed: {avg_speed:.1f}", (1000, 50))
-        avg_size = sum(organism.size for organism in self.env.organisms) / organisms_count if organisms_count else 0
-        self.viz.draw_text(f"Average size: {avg_size:.1f}", (1000, 70))
-        max_age = max(organism.age for organism in self.env.organisms) if organisms_count else 0
-        self.viz.draw_text(f"Maximum age: {max_age}", (1000, 90))
-        max_energy = max(organism.energy for organism in self.env.organisms) if organisms_count else 0
-        self.viz.draw_text(f"Maximum energy: {max_energy:.1f}", (1000, 110))
+        # self.viz.draw_text(f"Organisms: {organisms_count}", (1000, 10))
+        # self.viz.draw_text(f"Ticks: {self.ticks}", (1000, 30))
+        # self.viz.draw_text(f"Average speed: {avg_speed:.1f}", (1000, 50))
+        # self.viz.draw_text(f"Average size: {avg_size:.1f}", (1000, 70))
+        # max_age = max(organism.age for organism in self.env.organisms) if organisms_count else 0
+        # self.viz.draw_text(f"Maximum age: {max_age}", (1000, 90))
+        # max_energy = max(organism.energy for organism in self.env.organisms) if organisms_count else 0
+        # self.viz.draw_text(f"Maximum energy: {max_energy:.1f}", (1000, 110))
 
         if organisms_count:
             self.viz.draw_metabolism_graph()
@@ -43,19 +40,25 @@ class Simulation:
 
     def draw_organisms(self):
         for organism in self.env.organisms:
-            screen_x = organism.x - self.viz.camera_x
-            screen_y = organism.y - self.viz.camera_y
-            if 0 <= screen_x <= self.viz.screen_width and 0 <= screen_y <= self.viz.screen_height:
-                self.viz.draw_organism(organism)
+            # screen_x = organism.x - self.viz.camera_x
+            # screen_y = organism.y - self.viz.camera_y
+            # if 0 <= screen_x <= self.viz.screen_width and 0 <= screen_y <= self.viz.screen_height:
+            self.viz.draw_organism(organism)
 
     def run(self):
+        """Run the visualization loop."""
+
         self.viz.precompute_environment()
         self.viz.handle_zoom(0.5)
 
         time_delta = self.clock.tick(60)  # Cap the frame rate at 60 FPS
 
-        """Run the visualization loop."""
         generation = 0
+
+        organisms_count = len(self.env.organisms)
+        avg_speed = sum(
+            organism.speed for organism in self.env.organisms) / organisms_count if organisms_count else 0
+        avg_size = sum(organism.size for organism in self.env.organisms) / organisms_count if organisms_count else 0
 
         running = True
         while running:
@@ -101,13 +104,6 @@ class Simulation:
             if keys[pygame.K_DOWN]:
                 self.viz.pan_camera(0, 10)
 
-            self.viz.draw_environment()  # Draw the precomputed environment
-
-            self.draw_organisms()
-
-            if self.overlay_is_on:
-                self.overlay_draw()
-
             if not self.paused:
                 self.ticks += 1
                 generation += 1
@@ -115,12 +111,22 @@ class Simulation:
                 # Add food every 5 ticks
                 if self.ticks % 5 == 0:
                     self.env.add_food()
-
                 self.proceed_organisms()
-
+                organisms_count = len(self.env.organisms)
                 self.viz.update_population_history()
+                avg_speed = sum(
+                    organism.speed for organism in self.env.organisms) / organisms_count if organisms_count else 0
+                avg_size = sum(
+                    organism.size for organism in self.env.organisms) / organisms_count if organisms_count else 0
+
+            self.viz.draw_environment()  # Draw the precomputed environment
+
+            self.draw_organisms()
+
+            if self.overlay_is_on:
+                self.overlay_draw(organisms_count)
 
             if self.controls_are_on:
-                self.viz.manager.draw_ui(self.viz.screen)
+                self.viz.draw_ui(self.ticks, organisms_count, avg_speed, avg_size)
 
             pygame.display.flip()  # Update the display
