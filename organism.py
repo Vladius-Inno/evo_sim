@@ -35,6 +35,47 @@ class Organism:
         self.reproduction_rate = self.traits.get('reproduction_rate')
         self.fertile_development = 0
 
+    def get_nearby_organisms(self, x, y, grid_size):
+        """Return organisms that are within the same or adjacent grid cells."""
+        grid_x = int(x // grid_size)
+        grid_y = int(y // grid_size)
+
+        nearby_organisms = []
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                cell = (grid_x + dx, grid_y + dy)
+                if cell in self.environment.grid:
+                    nearby_organisms.extend(self.environment.grid[cell])
+        return nearby_organisms
+
+    def check_collision(self, new_x, new_y):
+        """Check if the new position would result in a collision with another organism."""
+        for organism in self.environment.organisms:
+            if organism is not self:  # Don't check collision with itself
+                if math.hypot(organism.x - new_x, organism.y - new_y) < (self.size + organism.size):
+                    return True
+        return False
+
+    def check_collision_optimized(self, new_x, new_y):
+        """Optimized collision check using spatial partitioning or bounding boxess."""
+        grid_size = 50  # Define a grid size to partition space
+        nearby_organisms = self.get_nearby_organisms(new_x, new_y, grid_size)
+        # if self.id % 100 == 0:
+        #     print(f'for {self.id }: {nearby_organisms}')
+
+        for organism in nearby_organisms:
+            if organism is not self:  # Don't check collision with itself
+                if math.hypot(organism.x - new_x, organism.y - new_y) < (self.size + organism.size):  # Assuming size is the radius
+                    return True
+        return False
+
+    def avoid_collision(self, dx, dy):
+        """Handle collision by adjusting the organism's direction or stopping movement."""
+        # print(f'{self.id} has collided')
+        """Simple collision avoidance by adjusting direction."""
+        # self.x += dy * self.speed * 0.5  # Move sideways
+        # self.y -= dx * self.speed * 0.5  # Move sideways
+
     def move_towards(self, target_x, target_y):
         """Move the organism towards a target point (target_x, target_y)."""
         dx = target_x - self.x
@@ -46,8 +87,17 @@ class Organism:
             dx /= distance
             dy /= distance
 
-            self.x += dx * self.speed  # * self.speed_modifier
-            self.y += dy * self.speed  # * self.speed_modifier
+            new_x = self.x + dx * self.speed
+            new_y = self.y + dy * self.speed
+
+            # Check for collisions at the new position
+            if not self.check_collision_optimized(new_x, new_y):
+                self.environment.update_grid_position(self, new_x, new_y)
+                self.x = new_x
+                self.y = new_y
+            else:
+                # Handle collision (e.g., adjust direction, stop, etc.)
+                self.avoid_collision(dx, dy)
 
     @staticmethod
     def calculate_death_probability(age, max_age):

@@ -14,6 +14,10 @@ class Environment:
         self.food_positions = []
         self.food_energy = {}  # Map positions to energy levels
         self.organisms = []
+        self.grid_size = 50
+        self.grid_width = width // self.grid_size
+        self.grid_height = height // self.grid_size
+        self.grid = {}
 
     def get_light_level(self, x, y):
         """Calculate the light level at coordinates (x, y)."""
@@ -45,6 +49,34 @@ class Environment:
     def add_organism(self, organism):
         """Add an organism to be displayed."""
         self.organisms.append(organism)
+        grid_x = int(organism.x // self.grid_size)
+        grid_y = int(organism.y // self.grid_size)
+        cell = (grid_x, grid_y)
+        if cell not in self.grid:
+            self.grid[cell] = []
+        self.grid[cell].append(organism)
+
+    def update_grid_position(self, organism, new_x, new_y):
+        """Update the organism's position in the grid after moving."""
+        old_grid_x = int(organism.x // self.grid_size)
+        old_grid_y = int(organism.y // self.grid_size)
+        new_grid_x = int(new_x // self.grid_size)
+        new_grid_y = int(new_y // self.grid_size)
+
+        # Only update if the organism moved to a new grid cell
+        if (old_grid_x, old_grid_y) != (new_grid_x, new_grid_y):
+            # Remove from old cell
+            old_cell = (old_grid_x, old_grid_y)
+            if old_cell in self.grid and organism in self.grid[old_cell]:
+                self.grid[old_cell].remove(organism)
+                if not self.grid[old_cell]:  # If the cell is empty, remove it
+                    del self.grid[old_cell]
+
+            # Add to new cell
+            new_cell = (new_grid_x, new_grid_y)
+            if new_cell not in self.grid:
+                self.grid[new_cell] = []
+            self.grid[new_cell].append(organism)
 
     def get_food_positions(self):
         return self.food_positions
