@@ -1,4 +1,5 @@
 import pygame
+import pygame_gui
 
 
 class Simulation:
@@ -8,8 +9,9 @@ class Simulation:
         self.clock = pygame.time.Clock()
         self.ticks = 0  # Track simulation ticks
         self.skip_ticks = 1
-        self.paused = False  # Track whether the simulation is paused
+        self.paused = True  # Track whether the simulation is paused
         self.overlay_is_on = True
+        self.controls_are_on = True
 
     def overlay_draw(self):
         organisms_count = len(self.env.organisms)
@@ -50,6 +52,8 @@ class Simulation:
         self.viz.precompute_environment()
         self.viz.handle_zoom(0.5)
 
+        time_delta = self.clock.tick(60)  # Cap the frame rate at 60 FPS
+
         """Run the visualization loop."""
         generation = 0
 
@@ -61,22 +65,30 @@ class Simulation:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
                         self.paused = not self.paused  # Toggle the paused state when spacebar is pressed
+                        if self.paused:
+                            self.viz.start_pause_button.set_text('Start')
+                        else:
+                            self.viz.start_pause_button.set_text('Pause')
                     elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
                         self.viz.zoom_in()
                     elif event.key == pygame.K_MINUS:
                         self.viz.zoom_out()
                     elif event.key == pygame.K_g:
                         self.overlay_is_on = not self.overlay_is_on
-                    # elif event.key == pygame.K_LEFT:
-                    #     self.viz.pan_camera(-10, 0)
-                    # elif event.key == pygame.K_RIGHT:
-                    #     self.viz.pan_camera(10, 0)
-                    # elif event.key == pygame.K_UP:
-                    #     self.viz.pan_camera(0, -10)
-                    # elif event.key == pygame.K_DOWN:
-                    #     self.viz.pan_camera(0, 10)
+                    elif event.key == pygame.K_c:
+                        self.controls_are_on = not self.controls_are_on
+                self.viz.manager.process_events(event)
 
-            # self.viz.zoom_factor = max(self.viz.zoom_factor, self.viz.screen_width / self.env.width)  # Minimum zoom-out to 50%
+                # Handle Start Button Click
+                if event.type == pygame_gui.UI_BUTTON_PRESSED:
+                    if event.ui_element == self.viz.start_pause_button:
+                        self.paused = not self.paused
+                        if self.paused:
+                            self.viz.start_pause_button.set_text('Start')
+                        else:
+                            self.viz.start_pause_button.set_text('Pause')
+
+            self.viz.manager.update(time_delta)
 
             keys = pygame.key.get_pressed()
             # Panning with arrow keys
@@ -96,10 +108,6 @@ class Simulation:
             if self.overlay_is_on:
                 self.overlay_draw()
 
-            pygame.display.flip()  # Update the display
-
-            self.clock.tick(60)  # Cap the frame rate at 60 FPS
-
             if not self.paused:
                 self.ticks += 1
                 generation += 1
@@ -112,3 +120,7 @@ class Simulation:
 
                 self.viz.update_population_history()
 
+            if self.controls_are_on:
+                self.viz.manager.draw_ui(self.viz.screen)
+
+            pygame.display.flip()  # Update the display

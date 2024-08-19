@@ -1,4 +1,5 @@
 import pygame
+import pygame_gui
 
 
 class Visualizer:
@@ -11,6 +12,47 @@ class Visualizer:
         self.camera_y = 0
         self.zoom_factor = 0.5
         self.screen = pygame.display.set_mode((screen_width, screen_height))
+        # GUI block
+        self.manager = pygame_gui.UIManager((screen_width, screen_height))
+        # Information Box
+        self.info_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((800, 50), (350, 150)),
+                                                      starting_height=1,
+                                                      manager=self.manager)
+        # Control Panel
+        control_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((800, 250), (350, 250)),
+                                                    starting_height=0,
+                                                    manager=self.manager)
+        self.start_pause_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((10, 10), (100, 50)),
+                                                               text='Start',
+                                                               manager=self.manager,
+                                                               container=control_panel)
+        self.food_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((10, 70), (200, 25)),
+                                                                  start_value=50,
+                                                                  value_range=(0, 100),
+                                                                  manager=self.manager,
+                                                                  container=control_panel)
+        self.tick_skip_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((10, 110), (200, 25)),
+                                                                       start_value=1,
+                                                                       value_range=(1, 10),
+                                                                       manager=self.manager,
+                                                                       container=control_panel)
+
+        # Display Panel
+        self.display_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((800, 550), (350, 150)),
+                                                         starting_height=1,
+                                                         manager=self.manager)
+        predators_checkbox = pygame_gui.elements.UISelectionList(relative_rect=pygame.Rect((10, 10), (200, 75)),
+                                                                 item_list=['Predators'],
+                                                                 manager=self.manager,
+                                                                 container=self.display_panel)
+        energy_checkbox = pygame_gui.elements.UISelectionList(relative_rect=pygame.Rect((10, 50), (200, 75)),
+                                                              item_list=['Energy'],
+                                                              manager=self.manager,
+                                                              container=self.display_panel)
+        natural_colors_checkbox = pygame_gui.elements.UISelectionList(relative_rect=pygame.Rect((10, 90), (200, 75)),
+                                                                      item_list=['Natural Colors'],
+                                                                      manager=self.manager,
+                                                                      container=self.display_panel)
 
         self.env = environment
         """Precompute the environment drawing and store it as a surface."""
@@ -20,7 +62,8 @@ class Visualizer:
 
         self.font = pygame.font.SysFont(None, 24)
         self.graph_surface = pygame.Surface((self.screen_width, 200), pygame.SRCALPHA)  # Transparent surface for graphs
-        self.pop_graph_surface = pygame.Surface((self.screen_height, 100), pygame.SRCALPHA)  # Transparent surface for population graph
+        self.pop_graph_surface = pygame.Surface((self.screen_height, 100),
+                                                pygame.SRCALPHA)  # Transparent surface for population graph
         self.population_history = []
 
     def pan_camera(self, dx, dy):
@@ -130,7 +173,7 @@ class Visualizer:
         #                                              int(self.env.height * self.zoom_factor)))
 
         """Blit the precomputed environment surface to the screen."""
-        self.screen.blit(self.env_surface, (-self.camera_x , -self.camera_y))
+        self.screen.blit(self.env_surface, (-self.camera_x, -self.camera_y))
 
         # Draw food
         for food_position in self.env.get_food_positions():
@@ -148,7 +191,8 @@ class Visualizer:
 
         # Draw organism if within the current view
         if 0 <= screen_x <= self.screen_width and 0 <= screen_y <= self.screen_height:
-            pygame.draw.circle(self.screen, organism.color, (int(screen_x), int(screen_y)), int(organism.size * self.zoom_factor))
+            pygame.draw.circle(self.screen, organism.color, (int(screen_x), int(screen_y)),
+                               int(organism.size * self.zoom_factor))
 
     def update_population_history(self):
         predators = sum(1 for organism in self.organisms if 'prey' in organism.dna.genes['food_types'])
@@ -159,7 +203,7 @@ class Visualizer:
         self.pop_graph_surface.fill((0, 0, 0, 0))  # Clear the population graph surface
 
         # Get the latest 1000 history entries or less if history is shorter
-        history_length = min(1200, len(self.population_history))
+        history_length = min(self.screen_width, len(self.population_history))
         recent_history = self.population_history[-history_length:]
 
         # Calculate the dynamic scaling factor based on the current population values
@@ -188,9 +232,9 @@ class Visualizer:
         # Draw vertical label
         label = self.font.render('Population', True, (255, 255, 255))
         label = pygame.transform.rotate(label, 90)
-        self.screen.blit(label, (0, self.env.height - 110))
+        self.screen.blit(label, (0, self.screen_height - 110))
 
-        self.screen.blit(self.pop_graph_surface, (10, self.env.height - 100))  # Adjust position as needed
+        self.screen.blit(self.pop_graph_surface, (10, self.screen_height - 100))  # Adjust position as needed
 
     def draw_metabolism_graph(self):
         self.font = pygame.font.SysFont(None, 16)
@@ -202,7 +246,7 @@ class Visualizer:
         metabolism_bins = [0] * bins_count
 
         for metabolism_rate in metabolism_rates:
-            bin_index = int(metabolism_rate*10)
+            bin_index = int(metabolism_rate * 10)
             metabolism_bins[bin_index] += 1
 
         self.graph_surface.fill((0, 0, 0, 0))  # Clear the graph surface
@@ -214,7 +258,8 @@ class Visualizer:
                 # Only draw and label bins that have organisms in them
                 index += 1
                 bar_height = int((count / max_value) * 100)
-                pygame.draw.rect(self.graph_surface, (255, 255, 255, 100), (index * 20 - 2, 100 - bar_height, 18, bar_height))
+                pygame.draw.rect(self.graph_surface, (255, 255, 255, 100),
+                                 (index * 20 - 2, 100 - bar_height, 18, bar_height))
                 label = self.font.render(f'{i / 10:.1f}', True, (255, 255, 255))
                 self.graph_surface.blit(label, (index * 20, 110))
 
@@ -293,89 +338,3 @@ class Visualizer:
         label = pygame.transform.rotate(label, 90)
         self.screen.blit(label, (600, 10))
         self.screen.blit(self.graph_surface, (10, 10))
-
-    def run(self):
-        """Run the visualization loop."""
-        self.precompute_environment()  # Precompute the environment initially
-        generation = 0
-
-        running = True
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        self.paused = not self.paused  # Toggle the paused state when spacebar is pressed
-                    elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
-                        self.zoom_in()
-                    elif event.key == pygame.K_MINUS:
-                        self.zoom_out()
-                    elif event.key == pygame.K_LEFT:
-                        self.pan_camera(-10, 0)
-                    elif event.key == pygame.K_RIGHT:
-                        self.pan_camera(10, 0)
-                    elif event.key == pygame.K_UP:
-                        self.pan_camera(0, -10)
-                    elif event.key == pygame.K_DOWN:
-                        self.pan_camera(0, 10)
-
-            self.zoom_factor = max(self.zoom_factor, 1200 / self.env.width)  # Minimum zoom-out to 50%
-
-            if not self.paused:
-                self.ticks += 1
-                generation += 1
-
-                keys = pygame.key.get_pressed()
-
-                # Panning with arrow keys
-                # if keys[pygame.K_LEFT]:
-                #     self.pan_camera(-10, 0)
-                # if keys[pygame.K_RIGHT]:
-                #     self.pan_camera(10, 0)
-                # if keys[pygame.K_UP]:
-                #     self.pan_camera(0, -10)
-                # if keys[pygame.K_DOWN]:
-                #     self.pan_camera(0, 10)
-
-                # Add food every 5 ticks
-                if self.ticks % 5 == 0:
-                    self.env.add_food()
-
-                self.draw_environment()  # Draw the precomputed environment
-
-                # Update organism positions
-                for organism in self.organisms:
-                    if organism.is_alive():
-                        organism.update(self.env)
-                        screen_x = organism.x - self.camera_x
-                        screen_y = organism.y - self.camera_y
-                        # Draw organism if within the current view
-                        if 0 <= screen_x <= self.screen_width and 0 <= screen_y <= self.screen_height:
-                            self.draw_organism(organism)
-                    else:
-                        self.organisms.remove(organism)
-
-                # Display the organism count
-                organisms_count = len(self.organisms)
-
-                self.draw_text(f"Organisms: {organisms_count}", (1000, 10))
-                self.draw_text(f"Ticks: {self.ticks}", (1000, 30))
-                avg_speed = sum(organism.speed for organism in self.organisms) / organisms_count
-                self.draw_text(f"Average speed: {avg_speed:.1f}", (1000, 50))
-                avg_size = sum(organism.size for organism in self.organisms) / organisms_count
-                self.draw_text(f"Average size: {avg_size:.1f}", (1000, 70))
-                max_age = max(organism.age for organism in self.organisms)
-                self.draw_text(f"Maximum age: {max_age}", (1000, 90))
-                max_energy = max(organism.energy for organism in self.organisms)
-                self.draw_text(f"Maximum energy: {max_energy:.1f}", (1000, 110))
-
-                self.update_population_history()
-                self.draw_metabolism_graph()
-                self.draw_food_sense_graph()
-                self.draw_population_graph()
-                self.draw_activeness_graph()
-
-                pygame.display.flip()  # Update the display
-
-                self.clock.tick(60)  # Cap the frame rate at 60 FPS
