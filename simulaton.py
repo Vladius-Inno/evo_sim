@@ -12,6 +12,7 @@ class Simulation:
         self.paused = True  # Track whether the simulation is paused
         self.overlay_is_on = True
         self.controls_are_on = True
+        self.running = True
 
     def overlay_draw(self, organisms_count):
 
@@ -45,10 +46,63 @@ class Simulation:
             # if 0 <= screen_x <= self.viz.screen_width and 0 <= screen_y <= self.viz.screen_height:
             self.viz.draw_organism(organism)
 
+    def process_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    self.paused = not self.paused  # Toggle the paused state when spacebar is pressed
+                    if self.paused:
+                        self.viz.start_pause_button.set_text('Start')
+                    else:
+                        self.viz.start_pause_button.set_text('Pause')
+                elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
+                    self.viz.zoom_in()
+                elif event.key == pygame.K_MINUS:
+                    self.viz.zoom_out()
+                elif event.key == pygame.K_g:
+                    self.overlay_is_on = not self.overlay_is_on
+                elif event.key == pygame.K_c:
+                    self.controls_are_on = not self.controls_are_on
+            self.viz.manager.process_events(event)
+
+            # Handle Start Button Click
+            if event.type == pygame_gui.UI_BUTTON_PRESSED:
+                if event.ui_element == self.viz.start_pause_button:
+                    self.paused = not self.paused
+                    if self.paused:
+                        self.viz.start_pause_button.set_text('Start')
+                    else:
+                        self.viz.start_pause_button.set_text('Pause')
+                # if event.ui_element == self.viz.food_slider:
+                #     food_amount = int(self.viz.food_slider.get_current_value())
+                #     self.viz.food_slider_label.set_text(f"Food Amount: {food_amount}")
+            if event.type == pygame_gui.UI_HORIZONTAL_SLIDER_MOVED:
+                if event.ui_element == self.viz.food_slider:
+                    food_amount = int(self.viz.food_slider.get_current_value())
+                    self.viz.food_slider_label.set_text(f"Food Amount: {food_amount}")
+                if event.ui_element == self.viz.tick_skip_slider:
+                    self.skip_ticks = int(self.viz.tick_skip_slider.get_current_value())
+                    self.viz.tick_skip_label.set_text(f"Ticks to skip: {self.skip_ticks}")
+
+    def process_keys(self):
+        keys = pygame.key.get_pressed()
+        # Panning with arrow keys
+        if keys[pygame.K_LEFT]:
+            self.viz.pan_camera(-10, 0)
+        if keys[pygame.K_RIGHT]:
+            self.viz.pan_camera(10, 0)
+        if keys[pygame.K_UP]:
+            self.viz.pan_camera(0, -10)
+        if keys[pygame.K_DOWN]:
+            self.viz.pan_camera(0, 10)
+
     def run(self):
         """Run the visualization loop."""
 
         self.viz.precompute_environment()
+
         self.viz.handle_zoom(0.5)
 
         time_delta = self.clock.tick(60)  # Cap the frame rate at 60 FPS
@@ -59,74 +113,33 @@ class Simulation:
         avg_speed = sum(
             organism.speed for organism in self.env.organisms) / organisms_count if organisms_count else 0
         avg_size = sum(organism.size for organism in self.env.organisms) / organisms_count if organisms_count else 0
+        # food_amount = int(self.viz.food_slider.get_current_value())
 
-        running = True
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        self.paused = not self.paused  # Toggle the paused state when spacebar is pressed
-                        if self.paused:
-                            self.viz.start_pause_button.set_text('Start')
-                        else:
-                            self.viz.start_pause_button.set_text('Pause')
-                    elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
-                        self.viz.zoom_in()
-                    elif event.key == pygame.K_MINUS:
-                        self.viz.zoom_out()
-                    elif event.key == pygame.K_g:
-                        self.overlay_is_on = not self.overlay_is_on
-                    elif event.key == pygame.K_c:
-                        self.controls_are_on = not self.controls_are_on
-                self.viz.manager.process_events(event)
-
-                # Handle Start Button Click
-                if event.type == pygame_gui.UI_BUTTON_PRESSED:
-                    if event.ui_element == self.viz.start_pause_button:
-                        self.paused = not self.paused
-                        if self.paused:
-                            self.viz.start_pause_button.set_text('Start')
-                        else:
-                            self.viz.start_pause_button.set_text('Pause')
-
+        while self.running:
+            self.process_events()
             self.viz.manager.update(time_delta)
-
-            keys = pygame.key.get_pressed()
-            # Panning with arrow keys
-            if keys[pygame.K_LEFT]:
-                self.viz.pan_camera(-10, 0)
-            if keys[pygame.K_RIGHT]:
-                self.viz.pan_camera(10, 0)
-            if keys[pygame.K_UP]:
-                self.viz.pan_camera(0, -10)
-            if keys[pygame.K_DOWN]:
-                self.viz.pan_camera(0, 10)
-
+            self.process_keys()
             if not self.paused:
                 self.ticks += 1
                 generation += 1
-
                 # Add food every 5 ticks
                 if self.ticks % 5 == 0:
-                    self.env.add_food()
+                    for i in range(int(self.viz.food_slider.get_current_value())):
+                        self.env.add_food()
                 self.proceed_organisms()
                 organisms_count = len(self.env.organisms)
                 self.viz.update_population_history()
-                avg_speed = sum(
-                    organism.speed for organism in self.env.organisms) / organisms_count if organisms_count else 0
-                avg_size = sum(
-                    organism.size for organism in self.env.organisms) / organisms_count if organisms_count else 0
+                if self.overlay_is_on:
+                    avg_speed = sum(
+                        organism.speed for organism in self.env.organisms) / organisms_count if organisms_count else 0
+                    avg_size = sum(
+                        organism.size for organism in self.env.organisms) / organisms_count if organisms_count else 0
+            if self.ticks % self.skip_ticks == 0:
+                self.viz.draw_environment()  # Draw the precomputed environment
+                self.draw_organisms()
+                if self.overlay_is_on:
+                    self.overlay_draw(organisms_count)
+                if self.controls_are_on:
+                    self.viz.draw_ui(self.ticks, organisms_count, avg_speed, avg_size)
 
-            self.viz.draw_environment()  # Draw the precomputed environment
-
-            self.draw_organisms()
-
-            if self.overlay_is_on:
-                self.overlay_draw(organisms_count)
-
-            if self.controls_are_on:
-                self.viz.draw_ui(self.ticks, organisms_count, avg_speed, avg_size)
-
-            pygame.display.flip()  # Update the display
+                pygame.display.flip()  # Update the display

@@ -50,7 +50,7 @@ class Visualizer:
             container=self.info_panel
         )
         # Control Panel
-        self.control_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((950, 220), (220, 150)),
+        self.control_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((950, 220), (220, 200)),
                                                          starting_height=0,
                                                          manager=self.manager)
 
@@ -58,20 +58,31 @@ class Visualizer:
                                                                text='Start',
                                                                manager=self.manager,
                                                                container=self.control_panel)
-        self.food_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((10, 70), (200, 25)),
-                                                                  start_value=50,
-                                                                  value_range=(0, 100),
+        self.food_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((10, 90), (200, 25)),
+                                                                  start_value=5,
+                                                                  value_range=(0, 10),
+                                                                  click_increment=1,
                                                                   manager=self.manager,
                                                                   container=self.control_panel)
-        self.food_slider.disable()
-        self.tick_skip_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((10, 110), (200, 25)),
+        # Create the label for the slider
+        self.food_slider_label = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((10, 65), (-1, 25)),
+                                                             text=f"Food Amount: {int(self.food_slider.get_current_value())}",
+                                                             manager=self.manager,
+                                                             container=self.control_panel)
+        # self.food_slider.disable()
+        self.tick_skip_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((10, 140), (200, 25)),
                                                                        start_value=1,
                                                                        value_range=(1, 10),
                                                                        manager=self.manager,
                                                                        container=self.control_panel)
-        self.tick_skip_slider.disable()
+        # Create the label for the slider
+        self.tick_skip_label = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((10, 115), (-1, 25)),
+                                                           text=f"Ticks to skip: {int(self.tick_skip_slider.get_current_value())}",
+                                                           manager=self.manager,
+                                                           container=self.control_panel)
+        # self.tick_skip_slider.disable()
         # Display Panel
-        self.display_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((950, 390), (220, 150)),
+        self.display_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((950, 440), (220, 150)),
                                                          starting_height=1,
                                                          manager=self.manager)
 
@@ -98,7 +109,7 @@ class Visualizer:
 
         self.font = pygame.font.SysFont(None, 24)
         self.graph_surface = pygame.Surface((self.screen_width, 200), pygame.SRCALPHA)  # Transparent surface for graphs
-        self.pop_graph_surface = pygame.Surface((self.screen_width-10, 100),
+        self.pop_graph_surface = pygame.Surface((self.screen_width - 10, 100),
                                                 pygame.SRCALPHA)  # Transparent surface for population graph
         self.population_history = []
 
@@ -390,5 +401,3 @@ class Visualizer:
         # Fill part of the overlay surface with semi-transparent color
         # self.controls_surface.fill((0, 0, 0, 128), (1000, 50, 250, 150))  # Semi-transparent black for the info panel
         # self.screen.blit(self.controls_surface, (1000, 50))
-
-
